@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f2f2f7">
+    <title>Σημειωματάριο by Marmon 251</title>
+    <link rel="stylesheet" href="style.css?v=3.1">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="app-container" id="app-container">
+        <!-- Header -->
+        <header class="main-header" style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
+            <div>
+                <h1 class="app-title" style="font-size: 26px; line-height: 1.3;">Σημειωματάριο by Marmon 251</h1>
+                <p class="app-date" id="current-date">Σήμερα</p>
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center;">
+                <button id="btn-import" class="btn-icon-action" style="font-size: 26px; padding: 4px; color: var(--text-main);" title="Εισαγωγή Δεδομένων"><i class="ph ph-upload-simple"></i></button>
+                <button id="btn-export" class="btn-icon-action" style="font-size: 26px; padding: 4px; color: var(--text-main);" title="Εξαγωγή Δεδομένων"><i class="ph ph-download-simple"></i></button>
+                <button id="btn-theme" class="btn-icon-action" style="font-size: 28px; padding: 4px; color: var(--text-main);" title="Αλλαγή Θέματος"><i class="ph ph-palette"></i></button>
+            </div>
+            
+            <!-- Theme Picker -->
+            <div id="theme-menu" class="theme-menu">
+                <div class="theme-option" data-theme="dark"><div class="color-dot" style="background:#0F172A;"></div> Space Black</div>
+                <div class="theme-option" data-theme="sunset"><div class="color-dot" style="background:#4A1A10; border-color:#F97316;"></div> Sunset Orange</div>
+                <div class="theme-option" data-theme="forest"><div class="color-dot" style="background:#0c2715; border-color:#22C55E;"></div> Forest Green</div>
+                <div class="theme-option" data-theme="ocean"><div class="color-dot" style="background:#091a33; border-color:#0EA5E9;"></div> Ocean Blue</div>
+                <div class="theme-option" data-theme="mint"><div class="color-dot" style="background:#dcfce7; border-color:#22c55e;"></div> Pastel Mint</div>
+                <div class="theme-option" data-theme="rosegold"><div class="color-dot" style="background:#ffe4e6; border-color:#f43f5e;"></div> Rose Gold</div>
+                <div class="theme-option" data-theme="slate"><div class="color-dot" style="background:#e2e8f0; border-color:#475569;"></div> Slate Gray</div>
+                <div class="theme-option" data-theme="lavender"><div class="color-dot" style="background:#2e1065; border-color:#d8b4fe;"></div> Royal Lavender</div>
+                <div class="theme-option" data-theme="midnight"><div class="color-dot" style="background:#020617; border-color:#3b82f6;"></div> Deep Midnight</div>
+                <div class="theme-option" data-theme="neon"><div class="color-dot" style="background:#09090b; border-color:#ec4899;"></div> Cyber Neon</div>
+                <div class="theme-option" data-theme="coffee"><div class="color-dot" style="background:#fef3c7; border:1px solid #d4d4d8;"></div> Morning Coffee</div>
+                <div class="theme-option" data-theme="light"><div class="color-dot" style="background:#FFFFFF; border:1px solid #ccc;"></div> Pure White</div>
+            </div>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="search-bar-container">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" id="search-input" placeholder="Αναζήτηση υπενθύμισης..." autocomplete="off">
+        </div>
+
+        <!-- iOS Dashboard -->
+        <div class="ios-dashboard">
+            <div class="dash-card card-today active-dash" data-dash="today">
+                <div class="dash-header">
+                    <div class="dash-icon"><i class="ph-fill ph-calendar-star"></i></div>
+                    <div class="dash-count" id="count-today">0</div>
+                </div>
+                <div class="dash-label">Σήμερα</div>
+            </div>
+            <div class="dash-card card-scheduled" data-dash="upcoming">
+                <div class="dash-header">
+                    <div class="dash-icon"><i class="ph-fill ph-calendar-blank"></i></div>
+                    <div class="dash-count" id="count-scheduled">0</div>
+                </div>
+                <div class="dash-label">Προγρ/να</div>
+            </div>
+            <div class="dash-card card-all" data-dash="all">
+                <div class="dash-header">
+                    <div class="dash-icon" style="background-color: var(--text-muted);"><i class="ph-fill ph-tray"></i></div>
+                    <div class="dash-count" id="count-all">0</div>
+                </div>
+                <div class="dash-label">Όλα</div>
+            </div>
+            <div class="dash-card card-flagged" data-dash="priority">
+                <div class="dash-header">
+                    <div class="dash-icon" style="background-color: var(--cat-bills);"><i class="ph-fill ph-flag"></i></div>
+                    <div class="dash-count" id="count-flagged">0</div>
+                </div>
+                <div class="dash-label">Με Σημαία</div>
+            </div>
+        </div>
+
+        <h3 class="section-title">Οι Λίστες μου</h3>
+
+        <!-- Day Summary Widget -->
+        <div class="day-summary" id="day-summary">
+            <i class="ph ph-sparkle" id="day-summary-icon"></i>
+            <span id="day-summary-text">Φόρτωση...</span>
+        </div>
+
+        <!-- Categories Filter -->
+        <section class="categories-section">
+            <div class="categories-scroll" id="category-filters">
+                <button class="category-btn active" data-category="all">Όλα</button>
+                <button class="category-btn" data-category="personal"><i class="ph ph-user"></i> Προσωπικά</button>
+                <button class="category-btn" data-category="doctors"><i class="ph ph-stethoscope"></i> Γιατροί</button>
+                <button class="category-btn" data-category="bills"><i class="ph ph-receipt"></i> Λογαριασμοί</button>
+                <button class="category-btn" data-category="shopping"><i class="ph ph-shopping-bag"></i> Ψώνια</button>
+                <button class="category-btn" data-category="leaves"><i class="ph ph-airplane-tilt"></i> Άδειες</button>
+            </div>
+        </section>
+
+        <!-- Tasks List -->
+        <main class="tasks-container" id="tasks-list">
+            <div class="empty-state" id="empty-state">
+                <i class="ph ph-check-circle" style="font-size: 48px; color: var(--text-muted);"></i>
+                <p>Δεν υπάρχουν υπενθυμίσεις</p>
+            </div>
+            <!-- Task Items Injected Here -->
+        </main>
+
+        <!-- Bottom Actions -->
+        <div class="bottom-actions">
+            <!-- Quick Add Bar -->
+            <div class="quick-add-bar" id="quick-add-bar">
+                <input type="text" id="quick-add-input" placeholder="Νέα υπενθύμιση... (Enter για γρήγορη αποθήκευση)" autocomplete="off">
+                <button id="quick-add-more" class="quick-add-more-btn" title="Περισσότερες επιλογές"><i class="ph ph-sliders-horizontal"></i></button>
+            </div>
+            <button class="fab-add" id="add-btn">
+                <i class="ph ph-plus"></i> Νέα Υπενθύμιση
+            </button>
+        </div>
+
+        <!-- Briefing Modal -->
+        <div class="modal-overlay" id="briefing-modal">
+            <div class="modal-content" style="text-align: center; padding: 40px 20px;">
+                <i id="brief-icon" class="ph ph-sun" style="font-size: 72px; color: #F59E0B; margin-bottom: 20px;"></i>
+                <h2 id="brief-title" style="margin-bottom: 12px; font-size: 26px;">Καλημέρα!</h2>
+                <p id="brief-text" style="color: var(--text-muted); font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
+                    Σήμερα είναι μια γεμάτη μέρα...
+                </p>
+                <button class="save-btn" id="briefing-close" style="width: 100%; border-radius: 99px;">Ξεκίνα τη Μέρα σου</button>
+            </div>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div class="modal-overlay" id="add-modal">
+            <div class="modal-content">
+                <div class="modal-handle-wrapper"><div class="modal-handle"></div></div>
+                <div class="modal-header">
+                    <button class="btn-text" id="cancel-btn">Ακύρωση</button>
+                    <h2>Νέα Σημείωση</h2>
+                    <button class="btn-text fw-600" id="save-btn">Προσθήκη</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div style="position: relative;">
+                        <input type="text" id="task-title" class="input-title" placeholder="Τίτλος (ή πατήστε το μικρόφωνο)..." autocomplete="off" style="padding-right: 50px;">
+                        <button id="btn-mic" type="button" class="btn-mic"><i class="ph ph-microphone"></i></button>
+                    </div>
+                    <textarea id="task-items" class="input-title" placeholder="Γράψε τα ψώνια (ένα σε κάθε γραμμή)..." style="display: none; height: 120px; resize: none; font-size: 16px;"></textarea>
+                    <textarea id="task-comments" class="input-title" placeholder="Σχόλια (προαιρετικά)..." style="margin-top: 12px; height: 80px; resize: none; font-size: 15px;"></textarea>
+
+                    <div class="form-group priority-group">
+                        <button class="btn-priority" id="btn-priority" type="button"><i class="ph ph-star"></i> Σημαντικό</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Κατηγορία</label>
+                        <div class="category-select-grid" id="modal-category-select">
+                            <div class="cat-option active" data-val="personal">Προσωπικά</div>
+                            <div class="cat-option" data-val="doctors">Γιατροί</div>
+                            <div class="cat-option" data-val="bills">Λογαριασμοί</div>
+                            <div class="cat-option" data-val="shopping">Ψώνια</div>
+                            <div class="cat-option" data-val="leaves">Άδειες</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label>Ημερομηνία</label>
+                            <input type="date" id="task-date" class="input-datetime">
+                        </div>
+
+
+                        <div>
+                            <label>Ώρα (24ωρο)</label>
+                            <input type="time" id="task-time" class="input-datetime">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="leaves-group" style="display: none;">
+                        <label>Διάρκεια Άδειας (Ημέρες)</label>
+                        <input type="number" id="task-days" class="input-datetime" placeholder="π.χ. 5" min="1">
+                        <div id="leaves-dates-container" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
+
+                    <div class="form-group photo-upload-group">
+                        <label>Επισύναψη Φωτογραφίας (Προαιρετικό)</label>
+                        <input type="file" id="task-photo" accept="image/*" capture="environment" style="display: none;">
+                        <button class="btn-secondary" id="btn-photo" type="button"><i class="ph ph-camera" style="font-size: 20px;"></i> Βγάλε Φωτογραφία</button>
+                        <div id="photo-preview-container" style="display:none; position: relative; width: fit-content; margin-top: 10px;">
+                            <img id="photo-preview" src="" alt="Preview" style="max-width: 100px; border-radius: 8px; border: 2px solid var(--border-color); display: block;">
+                            <button id="btn-remove-photo" type="button" style="position: absolute; top: -8px; right: -8px; background: var(--cat-doctors); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="ph ph-x" style="font-size: 14px; font-weight: bold;"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group geo-group">
+                        <label>Ειδοποίηση Τοποθεσίας (Geo-Fencing)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="task-geo" class="input-datetime" placeholder="π.χ. Σύνταγμα, Αθήνα" style="flex:1; padding: 12px 14px; font-size: 15px;">
+                            <button id="btn-geo" class="btn-secondary" type="button" title="Αναζήτηση & Κλείδωμα Συντεταγμένων"><i class="ph ph-map-pin" style="font-size: 20px;"></i></button>
+                        </div>
+                        <small id="geo-status" style="color: var(--cat-personal); display:none; margin-top:8px; font-weight: 500;"></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Long-Press Context Menu Overlay -->
+    <div id="context-menu-overlay" class="context-overlay">
+        <div class="context-menu-wrapper" id="context-menu-wrapper">
+            <!-- Tapped task gets cloned here for 3D effect -->
+        </div>
+        <div class="context-actions" id="context-actions">
+            <!-- Action buttons injected via JS -->
+        </div>
+    </div>
+
+    <!-- Snackbar Undo -->
+    <div id="snackbar" class="snackbar">
+        <span id="snackbar-msg">Διαγράφηκε</span>
+        <button id="snackbar-undo">Αναίρεση</button>
+    </div>
+
+    <script src="app.js?v=3.2"></script>
+</body>
+</html>
