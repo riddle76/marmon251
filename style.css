@@ -295,7 +295,8 @@ body {
 /* Tasks Container */
 .tasks-container {
     flex: 1;
-    overflow-y: scroll;
+    min-height: 0;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 8px 12px 250px;
     display: flex;
