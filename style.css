@@ -297,7 +297,7 @@ body {
     flex: 1;
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
-    padding: 8px 12px 200px;
+    padding: 8px 12px 250px;
     display: flex;
     flex-direction: column;
 }
