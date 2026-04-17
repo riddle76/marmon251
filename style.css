@@ -299,8 +299,7 @@ body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 8px 12px 250px;
-    display: flex;
-    flex-direction: column;
+    display: block;
 }
 
 .empty-state {
