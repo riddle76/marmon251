@@ -228,53 +228,58 @@ body {
 .category-btn[data-category="leaves"].active { color: var(--cat-leaves); border-color: var(--cat-leaves); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);}
 
 
-/* iOS Dashboard */
+/* iOS Dashboard - Compact Horizontal Strip */
 .ios-dashboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    padding: 0 24px 24px;
+    display: flex;
+    overflow-x: auto;
+    padding: 0 16px 12px;
+    gap: 10px;
+    scrollbar-width: none;
 }
+.ios-dashboard::-webkit-scrollbar { display: none; }
 .dash-card {
     background: var(--card-surface);
-    border-radius: 20px;
-    padding: 14px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+    border-radius: 14px;
+    padding: 10px 14px;
     cursor: pointer;
     transition: transform 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border: 1.5px solid transparent;
 }
-.dash-card:active { transform: scale(0.96); }
+.dash-card:active { transform: scale(0.95); }
 .dash-card.active-dash {
-    box-shadow: 0 0 0 2px var(--accent-blue);
+    border-color: var(--accent-blue);
     background: var(--card-surface-elevated);
 }
 .dash-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    display: contents; /* flatten for row layout */
 }
 .dash-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 18px;
+    font-size: 13px;
+    flex-shrink: 0;
 }
 .dash-card.card-today .dash-icon { background: #007AFF; }
 .dash-card.card-scheduled .dash-icon { background: #FF3B30; }
 .dash-count {
-    font-size: 28px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1;
 }
 .dash-label {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .section-title {
