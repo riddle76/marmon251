@@ -548,8 +548,6 @@ function renderTasks() {
     
     curEmptyState.classList.remove('show');
 
-    const now = new Date();
-    const todayNum = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     const groups = {
         overdue: { title: 'Εκπρόθεσμα', cls: 'overdue', items: [] },

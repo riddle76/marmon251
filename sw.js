@@ -2,8 +2,8 @@ const CACHE_NAME = 'ios-organizer-v3.2';
 const ASSETS = [
   './',
   './index.html',
-  './app.js?v=3.1',
-  './style.css?v=3.1',
+  './app.js?v=3.2',
+  './style.css?v=3.2',
   './manifest.json',
   'https://unpkg.com/@phosphor-icons/web',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (e) => {
       return cachedResponse || fetch(e.request);
     }).catch(() => {
       if (e.request.mode === 'navigate') {
-        return caches.match('./index.html');
+        return caches.match('./index.html') || caches.match('/marmon251/index.html');
       }
     })
   );

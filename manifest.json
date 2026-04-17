@@ -1,19 +1,20 @@
 {
   "name": "Σημειωματάριο by Marmon 251",
   "short_name": "Σημειωματάριο",
-  "id": "com.marmon251.organizer",
+  "id": "/marmon251/",
   "description": "Τοπική εφαρμογή οργάνωσης για iPhone",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/marmon251/index.html",
+  "scope": "/marmon251/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f2f2f7",
-  "theme_color": "#f2f2f7",
+  "background_color": "#0A0A0C",
+  "theme_color": "#0A0A0C",
   "icons": [
     {
       "src": "./icon.png",
       "sizes": "1024x1024",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
