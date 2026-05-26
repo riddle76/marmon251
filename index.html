@@ -7,7 +7,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f2f2f7">
     <title>Σημειωματάριο by Marmon 251</title>
-    <link rel="stylesheet" href="style.css?v=3.2">
+    <link rel="stylesheet" href="style.css?v=3.7">
+    <link rel="stylesheet" href="leave-fix.css?v=1.0">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
@@ -191,8 +192,12 @@
                     </div>
 
                     <div class="form-group" id="leaves-group" style="display: none;">
-                        <label>Διάρκεια Άδειας (Ημέρες)</label>
-                        <input type="number" id="task-days" class="input-datetime" placeholder="π.χ. 5" min="1">
+                        <label>Ημερομηνίες Άδειας</label>
+                        <input type="hidden" id="task-days">
+                        <button class="btn-secondary btn-add-leave-date" id="btn-add-leave-date" type="button">
+                            <i class="ph ph-plus-circle"></i> Προσθήκη Άδειας
+                        </button>
+                        <div class="leave-count-summary" id="leave-count-summary">0 ημέρες άδειας</div>
                         <div id="leaves-dates-container" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
                     </div>
 
@@ -235,6 +240,7 @@
         <button id="snackbar-undo">Αναίρεση</button>
     </div>
 
-    <script src="app.js?v=3.2"></script>
+    <script src="app.js?v=3.7"></script>
+    <script src="leave-fix.js?v=1.0"></script>
 </body>
 </html>
