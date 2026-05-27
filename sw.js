@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ios-organizer-v3.8';
+const CACHE_NAME = 'ios-organizer-v3.9';
 const ASSETS = [
   './',
   './index.html',
@@ -6,9 +6,7 @@ const ASSETS = [
   './style.css?v=3.7',
   './leave-fix.js?v=1.0',
   './leave-fix.css?v=1.0',
-  './manifest.json',
-  'https://unpkg.com/@phosphor-icons/web',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+  './manifest.json'
 ];
 
 // Install Event
@@ -16,7 +14,7 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Caching Shell Assets');
-      return cache.addAll(ASSETS);
+      return Promise.allSettled(ASSETS.map((asset) => cache.add(asset)));
     })
   );
   self.skipWaiting();
