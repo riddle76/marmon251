@@ -70,7 +70,7 @@
             addButton.insertAdjacentElement('afterend', summary);
         }
 
-        if (!addButton.dataset.leaveFixBound) {
+        if (!addButton.dataset.leaveFixBound && !addButton.onclick) {
             addButton.dataset.leaveFixBound = '1';
             addButton.addEventListener('click', () => addLeaveInput(''));
         }
@@ -114,17 +114,78 @@
         saveBtn.dataset.leaveFixSaveBound = '1';
         saveBtn.addEventListener('click', () => {
             const activeLeave = document.querySelector('.cat-option[data-val="leaves"].active');
+            window.__leaveFixPendingSave = null;
+
+            if (activeLeave && window.__leaveFixEditingId) {
+                const tasks = getTasks();
+                const previousTask = tasks.find(task => task.id === window.__leaveFixEditingId);
+                window.__leaveFixPendingSave = {
+                    id: window.__leaveFixEditingId,
+                    previousDates: mergeDates(previousTask?.leaveDates || [])
+                };
+            }
+
             if (activeLeave && !titleInput.value.trim() && getLeaveInputs().some(input => input.value)) {
                 titleInput.value = 'Άδειες';
             }
             updateLeaveSummary();
         }, true);
+
+        saveBtn.addEventListener('click', () => {
+            setTimeout(() => {
+                const pending = window.__leaveFixPendingSave;
+                if (!pending?.id) return;
+
+                const tasks = getTasks();
+                const task = tasks.find(item => item.id === pending.id);
+                if (!task || task.category !== 'leaves') return;
+
+                const mergedDates = mergeDates([
+                    ...pending.previousDates,
+                    ...(task.leaveDates || [])
+                ]);
+
+                if (mergedDates.length === (task.leaveDates || []).length) return;
+
+                task.leaveDates = mergedDates;
+                task.leavesDays = mergedDates.length ? String(mergedDates.length) : '';
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+                window.__leaveFixPendingSave = null;
+                window.location.reload();
+            }, 0);
+        });
+    }
+
+    function wrapEditTask() {
+        if (typeof window.editTask !== 'function' || window.__leaveFixEditWrapped) return;
+
+        const originalEditTask = window.editTask;
+        window.__leaveFixEditWrapped = true;
+        window.editTask = function(id) {
+            window.__leaveFixEditingId = id;
+            const result = originalEditTask.apply(this, arguments);
+            setTimeout(() => {
+                setupLeaveControls();
+                updateLeaveSummary();
+            }, 0);
+            return result;
+        };
     }
 
     function boot() {
         setupLeaveControls();
         prepareSave();
+        wrapEditTask();
         enhanceLeaveList();
+
+        const addTaskButton = document.getElementById('add-btn');
+        if (addTaskButton && !addTaskButton.dataset.leaveFixNewBound) {
+            addTaskButton.dataset.leaveFixNewBound = '1';
+            addTaskButton.addEventListener('click', () => {
+                window.__leaveFixEditingId = null;
+                window.__leaveFixPendingSave = null;
+            }, true);
+        }
 
         const originalRender = window.renderTasks;
         if (typeof originalRender === 'function' && !window.__leaveFixRenderWrapped) {
