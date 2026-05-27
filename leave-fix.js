@@ -204,11 +204,10 @@
             }, 0);
         });
 
-        const observer = new MutationObserver(() => {
+        setTimeout(() => {
             setupLeaveControls();
             enhanceLeaveList();
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
+        }, 500);
     }
 
     if (document.readyState === 'loading') {
