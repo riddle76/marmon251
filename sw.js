@@ -1,11 +1,11 @@
-const CACHE_NAME = 'ios-organizer-v4.3';
+const CACHE_NAME = 'ios-organizer-v4.4';
 const ASSETS = [
   './',
   './index.html',
   './app.js?v=4.1',
   './style.css?v=4.1',
-  './leave-fix.js?v=2.0',
-  './leave-fix.css?v=2.0',
+  './leave-fix.js?v=2.1',
+  './leave-fix.css?v=2.1',
   './manifest.json'
 ];
 
