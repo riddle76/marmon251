@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ios-organizer-v4.2';
+const CACHE_NAME = 'ios-organizer-v4.3';
 const ASSETS = [
   './',
   './index.html',
@@ -28,19 +28,6 @@ self.addEventListener('activate', (e) => {
       keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
     );
     await self.clients.claim();
-
-    const windowClients = await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    });
-
-    await Promise.all(windowClients.map((client) => {
-      const url = new URL(client.url);
-      if (url.origin === self.location.origin && url.pathname.includes('/marmon251/')) {
-        return client.navigate(client.url).catch(() => {});
-      }
-      return Promise.resolve();
-    }));
   })());
 });
 
