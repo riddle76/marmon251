@@ -1,5 +1,5 @@
-const cacheName = 'marmon-neo-4';
-const assets = ['./', './index.html', './app.js?v=4', './manifest.webmanifest', '../icon.png'];
+const cacheName = 'marmon-neo-5';
+const assets = ['./', './index.html', './app.js?v=5', './manifest.webmanifest', '../icon.png'];
 
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(assets.map(asset => new Request(asset, { cache: 'reload' })))));
