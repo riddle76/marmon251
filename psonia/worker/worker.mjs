@@ -100,7 +100,7 @@ async function sendShoppingPush(db, list, actor, origin) {
     if (!subscriptions.results.length) return;
     const keys = await pushKeys(db);
     const privateKey = await crypto.subtle.importKey('jwk', JSON.parse(keys.private_jwk), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-    await Promise.allSettled(subscriptions.results.map(async subscription => {
+    const deliveries = await Promise.allSettled(subscriptions.results.map(async subscription => {
         if (!permittedPushEndpoint(subscription.endpoint)) return;
         const header = base64url(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
         const claims = base64url(new TextEncoder().encode(JSON.stringify({
@@ -116,12 +116,16 @@ async function sendShoppingPush(db, list, actor, origin) {
             headers: { TTL: '86400', Topic: 'shopping-additions', Urgency: 'normal',
                 Authorization: 'vapid t=' + signingInput + '.' + base64url(signature) + ', k=' + keys.public_key }
         });
+        console.info('Shopping push gateway response', response.status);
         if (response.status === 404 || response.status === 410) {
             await db.prepare('DELETE FROM push_subscriptions WHERE token_hash = ? AND endpoint = ?').bind(subscription.token_hash, subscription.endpoint).run();
         } else if (!response.ok) {
             console.warn('Shopping push delivery failed', response.status);
         }
     }));
+    for (const delivery of deliveries) {
+        if (delivery.status === 'rejected') console.warn('Shopping push transport error', delivery.reason?.name ?? 'Error');
+    }
 }
 
 export default {
