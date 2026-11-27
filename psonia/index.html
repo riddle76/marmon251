@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#11231c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Κοινά Ψώνια · Marmon</title>
+<style>
+:root{color-scheme:light dark;--bg:#edf5ee;--panel:#fff;--card:#f7faf6;--ink:#14251b;--muted:#43594a;--line:#b3c9b9;--action:#205f3e;--on:#fff;--soft:#def0e2}
+@media(prefers-color-scheme:dark){:root{--bg:#11231c;--panel:#1a3026;--card:#1f382c;--ink:#f1f8f0;--muted:#c2d6c7;--line:#4b6b57;--action:#a1e1b2;--on:#133324;--soft:#294b38}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.45 system-ui,sans-serif}header,main{max-width:660px;margin:auto;padding-inline:18px}header{padding-top:max(20px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;gap:10px}main{padding-bottom:max(24px,env(safe-area-inset-bottom))}h1{font-size:clamp(1.8rem,7vw,2.65rem);line-height:1.05;margin:8px 0 4px}h2{margin:16px 0 6px;font-size:1.1rem}p{margin:6px 0 12px}.muted{color:var(--muted)}.card{border:1px solid var(--line);background:var(--panel);padding:13px;border-radius:17px;margin:14px 0}.primary{background:var(--action);color:var(--on);border-color:transparent}.wide{width:100%;margin-top:8px}
+button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:48px}button{font-weight:650;cursor:pointer}button:disabled{opacity:.6;cursor:wait}input,textarea{width:100%;margin:4px 0}.row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}textarea{display:block;resize:vertical;min-height:78px}ul{padding:0;margin:0;list-style:none}li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:6px 0}.product{display:flex;gap:10px;text-align:left;align-items:center}.product strong{overflow-wrap:anywhere}.check{color:var(--action)}.photo-button{font-size:.85rem;min-width:78px}.photo-button img{border-radius:5px;width:40px;height:34px;object-fit:cover;vertical-align:middle}dialog{color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:17px;width:min(94%,520px);max-height:88dvh;padding:15px}dialog::backdrop{background:#081711a0}label{display:block;margin:4px 0}#photo-preview{max-width:100%;max-height:290px;margin-top:8px;border-radius:9px}#warning{color:var(--muted);min-height:1.4em}[hidden]{display:none!important}:focus-visible{outline:2px solid var(--action);outline-offset:2px}.picker{display:inline-flex;align-items:center;padding:10px;min-height:48px;border:1px solid var(--line);border-radius:12px;cursor:pointer}.sr{position:absolute;width:1px;height:1px;min-height:0;overflow:hidden;clip-path:inset(50%)}.sr:focus-visible+.picker{outline:2px solid var(--action)}
+</style>
+<script defer src="app.js"></script>
+</head>
+<body>
+<header><div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
+<main>
+<form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
+<button class="primary wide">Προσθήκη στη λίστα</button></form>
+<p id="warning" role="status"></p>
+<h2 id="summary">0 προϊόντα</h2><div id="products"></div><p id="empty" class="muted">Η λίστα είναι άδεια.</p>
+</main>
+<dialog id="share" aria-labelledby="share-title"><h2 id="share-title">Κοινή χρήση</h2><p id="share-status" role="status"></p>
+<form id="connect"><label>Διεύθυνση συγχρονισμού<input name="endpoint" type="url" required placeholder="https://..." inputmode="url"></label><label>Κωδικός δημιουργίας<input name="key" type="password" required autocomplete="off"></label><button class="primary wide">Δημιουργία κοινής λίστας</button></form>
+<button id="accept-invite" class="primary wide" type="button" hidden>Αποδοχή πρόσκλησης</button>
+<div id="owner-actions" hidden><button id="generate-invite" type="button" class="primary wide">Νέα πρόσκληση συσκευής</button>
+<div id="invite-output" hidden><label>Σύνδεσμος πρόσκλησης<input id="invite-link" readonly></label><button id="copy-invite" type="button">Αντιγραφή</button></div>
+<button id="revoke" type="button" class="wide">Αφαίρεση πρόσβασης από προσκεκλημένους</button></div>
+<div id="connected" hidden><button id="disconnect" type="button" class="wide">Αποσύνδεση συσκευής</button></div>
+<button data-close class="wide" type="button">Κλείσιμο</button></dialog>
+<dialog id="photo" aria-labelledby="photo-title"><h2 id="photo-title">Φωτογραφία προϊόντος</h2>
+<div class="row"><input id="camera" class="sr" type="file" accept="image/*" capture="environment"><label for="camera" class="picker">Κάμερα</label>
+<input id="library" class="sr" type="file" accept="image/*"><label for="library" class="picker">Ανέβασμα εικόνας</label></div>
+<p id="photo-status" role="status"></p><img id="photo-preview" alt="Φωτογραφία προϊόντος" hidden>
+<button id="photo-clear" type="button" class="wide" hidden>Αφαίρεση εικόνας</button><button id="photo-save" type="button" class="primary wide">Αποθήκευση φωτογραφίας</button><button data-close class="wide" type="button">Κλείσιμο</button></dialog>
+</body></html>
