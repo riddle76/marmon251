@@ -223,6 +223,36 @@ function button(action, title, extra = '') {
     return '<button type="button" data-action="' + action + '" ' + extra + '>' + title + '</button>';
 }
 
+const shoppingCategories = new Map(Object.entries({
+    'Φρούτα και λαχανικά': 'πατάτα πατάτες μήλο μήλα μπανάνα μπανάνες πορτοκάλι πορτοκάλια λεμόνι λεμόνια αχλάδι αχλάδια φράουλες σταφύλια ντομάτα ντομάτες ντοματάκια αγγούρι αγγούρια κρεμμύδι κρεμμύδια σκόρδο καρότο καρότα μαρούλι λάχανο μπρόκολο κολοκύθια μελιτζάνες πιπεριές μανιτάρια σπανάκι',
+    'Γαλακτοκομικά και αυγά': 'γάλα αυγό αυγά αβγό αβγά γιαούρτι γιαούρτια τυρί τυριά φέτα βούτυρο κρέμα τυροσαλάτα κασέρι γραβιέρα',
+    'Αρτοποιείο': 'ψωμί τοστ φρυγανιές',
+    'Κρέας, ψάρια και αλλαντικά': 'γαλοπούλα ζαμπόν μπέικον πάριζα κοτόπουλο κιμάς κρέας μπριζόλες ψάρι ψάρια τόνος σαρδέλες',
+    'Τρόφιμα ντουλαπιού': 'ρύζι μακαρόνια ζυμαρικά σπαγγέτι αλεύρι ζάχαρη αλάτι πιπέρι καφές τσάι κακάο σοκολάτα μπισκότα δημητριακά βρώμη μέλι μαρμελάδα φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι',
+    'Ποτά': 'νερό χυμός αναψυκτικά μπύρα κρασί',
+    'Σπίτι και φροντίδα': 'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες'
+}).map(([category, products]) => [category, new Set(products.split(' ').map(normalizeShoppingWord))]));
+
+function shoppingCategory(text) {
+    for (const word of correctShoppingSpelling(text).split(/\s+/)) {
+        const name = normalizeShoppingWord(word).replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+        for (const [category, products] of shoppingCategories) {
+            if (products.has(name)) return category;
+        }
+    }
+    return 'Λοιπά';
+}
+
+function renderShoppingGroups(items, row) {
+    const groups = new Map([...shoppingCategories.keys(), 'Λοιπά'].map(category => [category, []]));
+    for (const item of items) groups.get(shoppingCategory(item.text)).push(item);
+    return [...groups].filter(([, group]) => group.length).map(([category, group]) =>
+        '<section class="shopping-group"><h3>' + category + '</h3>' + group.map(item => row(item, false) +
+            (splitShopping(item.text).length > 1 ? button('split-item', 'Διαχωρισμός προϊόντων',
+                'data-id="' + safe(item.id) + '" aria-label="Διαχωρισμός προϊόντων για ' + safe(item.text) + '"') : '')
+        ).join('') + '</section>').join('');
+}
+
 function renderShopping() {
     const pending = data.shopping.filter(item => !item.done);
     const completed = data.shopping.filter(item => item.done);
@@ -234,8 +264,7 @@ function renderShopping() {
         '<p class="muted">Γράψε ή πες «γάλα πατάτες 6 αυγά». Για προϊόντα που χρειάζονται σαφή διαχωρισμό, βάλε κόμμα ή πες «επόμενο».</p>' +
         '<button class="primary wide">Προσθήκη στη λίστα</button></form>' +
         '<h2>Στη λίστα απομένουν ' + pending.length + '</h2>' +
-        (pending.map(item => row(item, false) + (splitShopping(item.text).length > 1 ?
-            button('split-item', 'Διαχωρισμός προϊόντων', 'data-id="' + safe(item.id) + '" aria-label="Διαχωρισμός προϊόντων για ' + safe(item.text) + '"') : '')).join('') || '<p class="muted">Η λίστα σου είναι άδεια.</p>') +
+        (renderShoppingGroups(pending, row) || '<p class="muted">Η λίστα σου είναι άδεια.</p>') +
         (lastChecked ? button('undo', 'Αναίρεση τελευταίου') : '') +
         (completed.length ? '<div class="card">' + button('completed', (showChecked ? 'Απόκρυψη' : 'Εμφάνιση') +
             ' τσεκαρισμένων (' + completed.length + ')', 'aria-expanded="' + showChecked + '"') +
@@ -367,12 +396,59 @@ function renderAppointments() {
         '<p id="appointment-badge-status" class="muted" role="status"></p>';
 }
 
-function noteCards(query = '') {
-    return data.notes.filter(item => (item.title + ' ' + item.text).toLocaleLowerCase('el').includes(query))
-        .map(item => '<article class="card"><strong>' + safe(item.title) + '</strong><p class="note">' +
-            safe(item.text) + '</p>' + (validPhoto(item.photo) ? '<img src="' + safe(item.photo) + '" alt="Φωτογραφία σημείωσης">' : '') +
-            '<div>' + button('edit-note', 'Επεξεργασία', 'data-id="' + safe(item.id) + '"') + '</div></article>').join('') ||
-        '<p class="muted">Δεν βρέθηκαν σημειώσεις.</p>';
+let noteSearch = '';
+let activeNoteTag = '';
+
+function noteTags(value) {
+    const tags = Array.isArray(value) ? value : String(value || '').split(/[,;\n]/);
+    const unique = new Map();
+    for (const tag of tags) {
+        if (typeof tag !== 'string' || !tag.trim()) continue;
+        const label = tag.trim().replace(/\s+/g, ' ').slice(0, 40);
+        const key = normalizeShoppingWord(label);
+        if (!unique.has(key)) unique.set(key, label);
+    }
+    return [...unique.values()].slice(0, 12);
+}
+
+function availableNoteTags() {
+    const tags = new Map();
+    for (const note of data.notes) {
+        for (const label of noteTags(note.tags)) tags.set(normalizeShoppingWord(label), label);
+    }
+    return [...tags].sort((a, b) => a[1].localeCompare(b[1], 'el'));
+}
+
+function noteCards() {
+    const query = normalizeShoppingWord(noteSearch.trim());
+    return data.notes.filter(item => {
+        const tags = noteTags(item.tags);
+        const matchesTag = !activeNoteTag || tags.some(tag => normalizeShoppingWord(tag) === activeNoteTag);
+        return matchesTag && normalizeShoppingWord([item.title, item.text, ...tags].join(' ')).includes(query);
+    }).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
+        .map(item => {
+            const id = 'data-id="' + safe(item.id) + '"';
+            const tags = noteTags(item.tags).map(tag => '<span class="note-tag">' + safe(tag) + '</span>').join('');
+            return '<article class="card"><div class="row"><strong>' + safe(item.title) + '</strong>' +
+                (item.pinned ? '<small>Καρφιτσωμένη</small>' : '') + '</div>' +
+                (tags ? '<div class="row note-tags">' + tags + '</div>' : '') + '<p class="note">' + safe(item.text) + '</p>' +
+                (validPhoto(item.photo) ? '<img src="' + safe(item.photo) + '" alt="Φωτογραφία σημείωσης">' : '') +
+                '<div class="row">' + button('edit-note', 'Επεξεργασία', id) +
+                button('pin-note', item.pinned ? 'Ξεκαρφίτσωμα' : 'Καρφίτσωμα', id) +
+                (validScanPdf(item.pdf) ? button('receipt-pdf', 'Απόδειξη PDF', id) : '') + '</div></article>';
+        }).join('') || '<p class="muted">Δεν βρέθηκαν σημειώσεις.</p>';
+}
+
+function renderNotes() {
+    const tags = availableNoteTags();
+    if (!tags.some(([key]) => key === activeNoteTag)) activeNoteTag = '';
+    const options = tags.map(([key, label]) => '<option value="' + safe(key) + '"' +
+        (key === activeNoteTag ? ' selected' : '') + '>' + safe(label) + '</option>').join('');
+    return button('new-note', '+ Νέα σημείωση', 'class="primary wide"') +
+        '<label for="note-search">Αναζήτηση</label><input id="note-search" type="search" value="' + safe(noteSearch) + '">' +
+        (tags.length ? '<label for="note-tag-filter">Ετικέτα</label><select id="note-tag-filter">' +
+            '<option value="">Όλες οι ετικέτες</option>' + options + '</select>' : '') +
+        '<div id="note-cards">' + noteCards() + '</div>';
 }
 
 function renderToday() {
@@ -396,9 +472,7 @@ function render() {
         else button.removeAttribute('aria-current');
     });
     const renderers = { today: renderToday, leave: renderLeave, shop: renderShopping, appointments: renderAppointments,
-        notes: () => button('new-note', '+ Νέα σημείωση', 'class="primary wide"') +
-            '<label for="note-search">Αναζήτηση</label><input id="note-search" type="search"><div id="note-cards">' +
-            noteCards() + '</div>' };
+        notes: renderNotes };
     view.innerHTML = renderers[selectedTab]();
     updateAppointmentBadge();
 }
@@ -425,24 +499,32 @@ function editRecord(kind, item) {
     openEditor(title, '<form id="record-form"><label>Τίτλος<input name="title" ' + (appointment ? 'required ' : '') +
         'value="' + safe(item?.title) + '"></label>' + content + '<label>Σημείωση<textarea name="text">' +
         safe(appointment ? item?.comments : item?.text) +
-        '</textarea></label><button class="primary wide">Αποθήκευση</button></form>' +
+        '</textarea></label>' + (appointment ? '' : '<label>Ετικέτες<input name="tags" placeholder="Αυτοκίνητο, Σπίτι" value="' +
+            safe(noteTags(item?.tags).join(', ')) + '"></label>' + scanEditorMarkup()) +
+        '<button class="primary wide">Αποθήκευση</button></form>' +
         (item ? button('remove-record', 'Διαγραφή', 'data-id="' + safe(item.id) + '" data-kind="' + kind + '"') : ''));
     const form = editor.querySelector('form');
     const photo = appointment ? null : setupNotePhoto(form, item?.photo);
+    const scan = appointment ? null : setupReceiptScan(form, item?.pdf);
     form.onsubmit = event => {
         event.preventDefault();
-        if (photo?.busy) return;
+        if (photo?.busy || scan?.busy) return;
+        if (scan?.pending) {
+            alert('Πάτησε Δημιουργία PDF ή Ακύρωση περικοπής πριν αποθηκεύσεις τη σημείωση.');
+            return;
+        }
         const fields = new FormData(form);
         const id = item?.id || crypto.randomUUID();
         const title = fields.get('title').trim();
         const text = fields.get('text').trim();
-        if (!title && (appointment || (!text && !photo.value))) {
-            alert(appointment ? 'Γράψε έναν τίτλο για το ραντεβού.' : 'Πρόσθεσε τίτλο, κείμενο ή φωτογραφία.');
+        if (!title && (appointment || (!text && !photo.value && !scan.value))) {
+            alert(appointment ? 'Γράψε έναν τίτλο για το ραντεβού.' : 'Πρόσθεσε τίτλο, κείμενο, φωτογραφία ή PDF.');
             return;
         }
         const record = appointment ?
             { id, title, datetime: fields.get('datetime'), comments: text } :
-            { id, title: title || (photo.value ? 'Φωτογραφία' : 'Σημείωση'), text, photo: photo.value };
+            { id, title: title || (scan.value ? 'Απόδειξη' : photo.value ? 'Φωτογραφία' : 'Σημείωση'), text, photo: photo.value,
+                pdf: scan.value, tags: noteTags(fields.get('tags')), pinned: Boolean(item?.pinned) };
         if (changeData(next => { next[kind] = [...next[kind].filter(entry => entry.id !== id), record]; })) dialog.close();
     };
 }
@@ -462,7 +544,7 @@ function setupNotePhoto(form, savedPhoto) {
         clear.hidden = !photo.value;
     }
 
-    for (const picker of form.querySelectorAll('input[type="file"]')) {
+    for (const picker of form.querySelectorAll('#note-camera, #note-library')) {
         picker.onchange = async () => {
             const file = picker.files[0];
             if (!file) return;
@@ -651,10 +733,15 @@ document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () =>
 
 view.addEventListener('input', event => {
     if (event.target.id === 'note-search') {
-        document.querySelector('#note-cards').innerHTML = noteCards(event.target.value.toLocaleLowerCase('el'));
+        noteSearch = event.target.value;
+        document.querySelector('#note-cards').innerHTML = noteCards();
     }
 });
 view.addEventListener('change', event => {
+    if (event.target.id === 'note-tag-filter') {
+        activeNoteTag = event.target.value;
+        document.querySelector('#note-cards').innerHTML = noteCards();
+    }
     if (event.target.id === 'leave-year') {
         selectedYear = Number(event.target.value);
         render();
@@ -698,6 +785,13 @@ document.addEventListener('click', event => {
         editRecord('appointments', data.appointments.find(item => item.id === id));
     } else if (action === 'new-note' || action === 'edit-note') {
         editRecord('notes', data.notes.find(item => item.id === id));
+    } else if (action === 'pin-note') {
+        changeData(next => {
+            const item = next.notes.find(note => note.id === id);
+            if (item) item.pinned = !item.pinned;
+        });
+    } else if (action === 'receipt-pdf') {
+        downloadScanPdf(data.notes.find(note => note.id === id)?.pdf);
     } else if (action === 'calendar') {
         const item = data.appointments.find(item => item.id === id);
         if (item) calendarOptions(item);
