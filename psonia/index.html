@@ -21,12 +21,17 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 .favorites-card ul{margin-top:6px}
 @media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
 .brand{display:flex;align-items:center;gap:7px;color:var(--action);font-size:1rem;font-weight:750;letter-spacing:.025em;line-height:1.2}.brand img{display:block;flex:none}
+:root[data-shopping-theme]{--bg:hsl(var(--theme-hue) var(--theme-saturation) 95%);--card:hsl(var(--theme-hue) var(--theme-saturation) 98%);--ink:hsl(var(--theme-hue) var(--theme-saturation) 12%);--muted:hsl(var(--theme-hue) var(--theme-saturation) 30%);--line:hsl(var(--theme-hue) var(--theme-saturation) 75%);--action:hsl(var(--theme-hue) var(--theme-saturation) 29%);--on:#fff;--soft:hsl(var(--theme-hue) var(--theme-saturation) 90%)}
+@media(prefers-color-scheme:dark){:root[data-shopping-theme]{--bg:hsl(var(--theme-hue) var(--theme-saturation) 10%);--panel:hsl(var(--theme-hue) var(--theme-saturation) 15%);--card:hsl(var(--theme-hue) var(--theme-saturation) 19%);--ink:#f7f7fa;--muted:#d7d7df;--line:hsl(var(--theme-hue) var(--theme-saturation) 42%);--action:hsl(var(--theme-hue) var(--theme-saturation) 78%);--on:#171820;--soft:hsl(var(--theme-hue) var(--theme-saturation) 25%)}}
+.theme-control{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin:0;color:var(--muted);font-size:.875rem}
+.theme-control select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:4px 8px;max-width:100%}
 </style>
-<script defer src="app.js?v=14"></script>
+<script defer src="app.js?v=15"></script>
 </head>
 <body>
 <header><div><div class="brand"><img src="icon.svg" alt="" width="24" height="24"><span>Marmon251</span></div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
 <main>
+<label class="theme-control">Χρώμα εφαρμογής<select id="shopping-theme"><option value="green">Πράσινο</option><option value="blue">Μπλε</option><option value="teal">Πετρόλ</option><option value="amber">Κεχριμπαρί</option><option value="orange">Πορτοκαλί</option><option value="red">Κόκκινο</option><option value="rose">Ροζ</option><option value="purple">Μοβ</option><option value="slate">Γκρι</option></select></label>
 <form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" aria-describedby="entry-help" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
 <p id="entry-help" class="muted">Για υπαγόρευση, πάτησε το μικρόφωνο στο ελληνικό πληκτρολόγιο. Πες «γάλα, κόμμα, τετράδια» και πάτησε «Προσθήκη στη λίστα».</p>
 <button class="primary wide">Προσθήκη στη λίστα</button></form>
