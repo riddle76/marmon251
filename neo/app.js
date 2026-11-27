@@ -266,17 +266,62 @@ function renderLeave() {
             '<p class="muted">Δεν υπάρχουν καταχωρίσεις γι’ αυτό το έτος.</p>');
 }
 
+const calendarShortcutName = 'Marmon Calendar';
+const calendarShortcutKey = 'marmon-neo-apple-calendar';
+
+function appleCalendarShortcut(task) {
+    const start = new Date(task.datetime);
+    if (!task.datetime || Number.isNaN(start.getTime())) return null;
+    const end = new Date(start.getTime() + 30 * 60000);
+    const fields = { title: task.title, start: start.toISOString(), end: end.toISOString(), notes: task.comments || '' };
+    const query = new URLSearchParams({ name: calendarShortcutName, input: 'text', text: JSON.stringify(fields) });
+    return 'shortcuts://run-shortcut?' + query.toString().replace(/\+/g, '%20');
+}
+
+function calendarShortcutEnabled() {
+    try { return localStorage.getItem(calendarShortcutKey) === 'enabled'; }
+    catch { return false; }
+}
+
+function calendarSetup() {
+    openEditor('Σύνδεση με το Ημερολόγιο Apple',
+        '<p>Δημιούργησε μία φορά τη συντόμευση <strong>Marmon Calendar</strong> στο iPhone.</p>' +
+        '<ol><li>Άνοιξε τις Συντομεύσεις και δημιούργησε νέα συντόμευση με αυτό ακριβώς το όνομα.</li>' +
+        '<li>Πρόσθεσε την ενέργεια «Λήψη λεξικού από την είσοδο» (Get Dictionary from Input), με είσοδο την «Είσοδο συντόμευσης» (Shortcut Input).</li>' +
+        '<li>Πρόσθεσε τρεις ενέργειες «Λήψη τιμής λεξικού» (Get Dictionary Value), για τα κλειδιά <code>title</code>, <code>start</code> και <code>end</code>. Σε καθεμία επίλεξε ως πηγή το ίδιο λεξικό από το προηγούμενο βήμα.</li>' +
+        '<li>Πρόσθεσε «Νέο γεγονός» (Add New Event). Βάλε τα αποτελέσματα των τριών ενεργειών στον τίτλο, στην έναρξη και στη λήξη αντίστοιχα. Επίλεξε ειδοποίηση «1 ώρα πριν» και κράτησε ενεργή την εμφάνιση της φόρμας για επιβεβαίωση.</li></ol>' +
+        button('calendar-enable', 'Η συντόμευση είναι έτοιμη', 'class="primary wide"') +
+        (calendarShortcutEnabled() ? button('calendar-disable', 'Χρήση αρχείου ημερολογίου', 'class="wide"') : ''));
+}
+
+function calendarOptions(task) {
+    const shortcut = appleCalendarShortcut(task);
+    if (!shortcut) return;
+    openEditor('Προσθήκη στο Ημερολόγιο',
+        '<p>Το αρχείο ραντεβού περιλαμβάνει ειδοποίηση μία ώρα πριν.</p>' +
+        button('calendar-file', 'Κοινοποίηση αρχείου ραντεβού', 'class="primary wide" data-id="' + safe(task.id) + '"') +
+        '<p class="muted">Στο iPhone μπορείς να ανοίξεις το αρχείο .ics ως συνημμένο στο Mail και να το προσθέσεις στο Ημερολόγιο. Έλεγξε ότι εμφανίζεται η ειδοποίηση «1 ώρα πριν».</p>' +
+        button('calendar-setup', 'Σύνδεση με Συντομεύσεις Apple', 'class="wide"'));
+}
+
+function calendarControl(item) {
+    const shortcut = calendarShortcutEnabled() && appleCalendarShortcut(item);
+    if (shortcut) return '<a class="calendar-link" href="' + safe(shortcut) + '">Προσθήκη στο Ημερολόγιο</a>';
+    return button('calendar', 'Προσθήκη στο Ημερολόγιο', 'data-id="' + safe(item.id) + '"');
+}
+
 function appointmentCard(item) {
     return '<article class="card"><strong>' + safe(item.title) + '</strong><p>' + prettyDate(item.datetime) +
         '</p>' + (item.comments ? '<p class="note">' + safe(item.comments) + '</p>' : '') + '<div class="row">' +
-        button('calendar', 'Αρχείο Ημερολογίου', 'data-id="' + safe(item.id) + '"') +
+        calendarControl(item) +
         button('edit-appointment', 'Επεξεργασία', 'data-id="' + safe(item.id) + '"') + '</div></article>';
 }
 
 function renderAppointments() {
     const appointments = [...data.appointments].sort((a, b) => a.datetime.localeCompare(b.datetime));
     return button('new-appointment', '+ Νέο ραντεβού', 'class="primary wide"') +
-        (appointments.map(appointmentCard).join('') || '<p class="muted">Δεν υπάρχουν ραντεβού.</p>');
+        (appointments.map(appointmentCard).join('') || '<p class="muted">Δεν υπάρχουν ραντεβού.</p>') +
+        button('calendar-setup', 'Ρυθμίσεις Ημερολογίου Apple', 'class="wide"');
 }
 
 function noteCards(query = '') {
@@ -510,7 +555,20 @@ document.addEventListener('click', event => {
         editRecord('notes', data.notes.find(item => item.id === id));
     } else if (action === 'calendar') {
         const item = data.appointments.find(item => item.id === id);
+        if (item) calendarOptions(item);
+    } else if (action === 'calendar-file') {
+        const item = data.appointments.find(item => item.id === id);
         if (item) exportAppointment(item);
+    } else if (action === 'calendar-setup') calendarSetup();
+    else if (action === 'calendar-enable' || action === 'calendar-disable') {
+        try {
+            if (action === 'calendar-enable') localStorage.setItem(calendarShortcutKey, 'enabled');
+            else localStorage.removeItem(calendarShortcutKey);
+            dialog.close();
+            render();
+        } catch {
+            alert('Δεν ήταν δυνατή η αποθήκευση της ρύθμισης.');
+        }
     } else if (action === 'download') backupDownload();
     else if (action === 'remove-leave' || action === 'remove-record') {
         if (!confirm('Να διαγραφεί αυτή η καταχώριση;')) return;
