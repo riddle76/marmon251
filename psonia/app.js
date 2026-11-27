@@ -7,7 +7,7 @@ const shoppingWords = new Map(
     'ντομάτα ντομάτες ντοματάκια αγγούρι αγγούρια κρεμμύδι κρεμμύδια σκόρδο καρότο καρότα ' +
     'μαρούλι λάχανο μπρόκολο κολοκύθια μελιτζάνες πιπεριές μανιτάρια σπανάκι ' +
     'φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι νερό χυμός αναψυκτικά μπύρα κρασί ' +
-    'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες τοστ κρέμα').split(' ')
+    'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες τοστ κρέμα τετράδιο τετράδια μολύβι μολύβια στυλό γόμα γόμες ξύστρα κασετίνα κασετίνες μαρκαδόρος μαρκαδόροι ξυλομπογιές νερομπογιές χάρακας διαβήτης μπλοκ χαρτόνι χαρτόνια ντοσιέ ντοσιέδες').split(' ')
         .map(word => [normalizeShoppingWord(word), word])
 );
 for (const [misspelling, correction] of Object.entries({
@@ -76,6 +76,7 @@ const shoppingCategories = new Map(Object.entries({
     'Ποτά και ροφήματα': 'νερό χυμός χυμοί αναψυκτικό αναψυκτικά μπύρα μπίρα κρασί ούζο καφές τσάι κακάο λεμονάδα',
     'Καθαριότητα και είδη σπιτιού': 'χαρτί χαρτοπετσέτες απορρυπαντικό χλωρίνη σακούλες σφουγγάρι καθαριστικό μαλακτικό αλουμινόχαρτο μεμβράνη',
     'Προσωπική φροντίδα': 'σαπούνι σαμπουάν οδοντόκρεμα οδοντόβουρτσα αφρόλουτρο αποσμητικό ξυραφάκια σερβιέτες',
+    'Σχολικά και γραφική ύλη': 'τετράδιο τετράδια μολύβι μολύβια στυλό γόμα γόμες ξύστρα κασετίνα κασετίνες μαρκαδόρος μαρκαδόροι ξυλομπογιές νερομπογιές χάρακας διαβήτης μπλοκ χαρτόνι χαρτόνια ντοσιέ ντοσιέδες',
     'Βρεφικά είδη': 'πάνες μωρομάντηλα μωρομάντιλα',
     'Κατοικίδια': 'γατοτροφή σκυλοτροφή κροκέτες'
 }).map(([category, products]) => [category, new Set(products.split(' ').map(normalizeShoppingWord))]));
@@ -90,11 +91,15 @@ const shoppingPhrases = new Map(Object.entries({
     'τροφή σκύλου': 'Κατοικίδια',
     'άμμος γάτας': 'Κατοικίδια',
     'βρεφικό γάλα': 'Βρεφικά είδη',
-    'βρεφική κρέμα': 'Βρεφικά είδη'
+    'βρεφική κρέμα': 'Βρεφικά είδη',
+    'σχολική τσάντα': 'Σχολικά και γραφική ύλη',
+    'σχολικές τσάντες': 'Σχολικά και γραφική ύλη',
+    'χαρτί εκτυπωτή': 'Σχολικά και γραφική ύλη',
+    'χαρτί α4': 'Σχολικά και γραφική ύλη'
 }).map(([phrase, category]) => [normalizeShoppingWord(phrase), category]));
 
 function shoppingCategory(text) {
-    const words = normalizeShoppingWord(correctShoppingSpelling(text)).match(/\p{L}+/gu) || [];
+    const words = normalizeShoppingWord(correctShoppingSpelling(text)).match(/[\p{L}\p{N}]+/gu) || [];
     if (words.some(word => shoppingCategories.get('Κατεψυγμένα').has(word))) return 'Κατεψυγμένα';
     for (let i = 0; i < words.length; i++) {
         const phrase = shoppingPhrases.get(words[i] + ' ' + words[i + 1]);
@@ -103,7 +108,7 @@ function shoppingCategory(text) {
             if (products.has(words[i])) return category;
         }
     }
-    return 'Λοιπά';
+    return 'Γενικά / Λοιπά';
 }
 
 const $ = selector => document.querySelector(selector);
@@ -214,7 +219,7 @@ function render() {
     $('#mode').textContent = device.connection ? 'Κοινή λίστα' : 'Λίστα σε αυτή τη συσκευή';
     $('#warning').textContent = error;
     $('#summary').textContent = products.length === 1 ? '1 προϊόν' : products.length + ' προϊόντα';
-    const groups = new Map([...shoppingCategories.keys(), 'Λοιπά'].map(name => [name, []]));
+    const groups = new Map([...shoppingCategories.keys(), 'Γενικά / Λοιπά'].map(name => [name, []]));
     for (const item of products) groups.get(shoppingCategory(item.title)).push(item);
     $('#products').innerHTML = [...groups].filter(([, list]) => list.length)
         .map(([name, list]) => '<section><h2>' + name + '</h2><ul>' + list.map(productRow).join('') + '</ul></section>').join('');
