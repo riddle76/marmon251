@@ -22,7 +22,7 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 @media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
 .brand{display:flex;align-items:center;gap:7px;color:var(--action);font-size:1rem;font-weight:750;letter-spacing:.025em;line-height:1.2}.brand img{display:block;flex:none}
 </style>
-<script defer src="app.js?v=4"></script>
+<script defer src="app.js?v=5"></script>
 </head>
 <body>
 <header><div><div class="brand"><img src="icon.svg" alt="" width="24" height="24"><span>Marmon251</span></div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
@@ -38,6 +38,7 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 </main>
 <dialog id="share" aria-labelledby="share-title"><h2 id="share-title">Κοινή χρήση</h2><p id="share-status" role="status"></p>
 <form id="connect"><label>Διεύθυνση συγχρονισμού<input name="endpoint" type="url" required placeholder="https://..." inputmode="url"></label><label>Κωδικός δημιουργίας<input name="key" type="password" required autocomplete="off"></label><button class="primary wide">Δημιουργία κοινής λίστας</button></form>
+<form id="paste-invite" hidden><label>Σύνδεσμος πρόσκλησης<input name="invitation" type="url" inputmode="url" autocomplete="off" required></label><button class="wide">Χρήση πρόσκλησης</button></form>
 <button id="accept-invite" class="primary wide" type="button" hidden>Αποδοχή πρόσκλησης</button>
 <div id="owner-actions" hidden><button id="generate-invite" type="button" class="primary wide">Νέα πρόσκληση συσκευής</button>
 <div id="invite-output" hidden><label>Σύνδεσμος πρόσκλησης<input id="invite-link" readonly></label><button id="copy-invite" type="button">Αντιγραφή</button></div>
