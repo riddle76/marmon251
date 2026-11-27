@@ -11,7 +11,7 @@ const shoppingWords = new Map(
         .map(word => [normalizeShoppingWord(word), word])
 );
 for (const [misspelling, correction] of Object.entries({
-    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός'
+    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο'
 })) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
 
 const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι', 'σχολικη τσαντα', 'ψωμι μπαγκετα', 'σαλατα ροκα', 'σαλατα μαρουλι', 'ψαρι μπακαλιαροσ', 'κρεμα αφρολουτρο'].map(normalizeShoppingWord));
@@ -44,12 +44,13 @@ function splitRecognizedProducts(text) {
         const previous = normalized[i - 1];
         const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
         const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
-        if (foundProduct && (compound || shoppingQualifiers.has(qualifier))) continue;
+        const chocolateAndMilk = ['σοκολατα', 'σοκολατεσ'].includes(normalized[i - 2]) && previous === 'με' && normalized[i] === 'γαλα';
+        if (foundProduct && (compound || (shoppingQualifiers.has(qualifier) && !chocolateAndMilk))) continue;
         if (foundProduct) {
             let split = i;
             if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
             if (/^\d+(?:[,.]\d+)?$/.test(normalized[split - 1])) split--;
-            const end = normalized[split - 1] === 'και' ? split - 1 : split;
+            const end = normalized[split - 1] === 'και' || chocolateAndMilk ? split - 1 : split;
             parts.push(words.slice(start, end).join(' '));
             start = split;
         }
@@ -75,7 +76,7 @@ const shoppingCategories = new Map(Object.entries({
     'Σνακ και γλυκά': 'σοκολάτα σοκολάτες μπισκότα γκοφρέτες πατατάκια ποπκόρν κράκερ καραμέλες ξηροί αμύγδαλα καρύδια σταφίδες',
     'Ποτά και ροφήματα': 'νερό χυμός χυμοί αναψυκτικό αναψυκτικά μπύρα μπίρα κρασί ούζο καφές τσάι κακάο λεμονάδα',
     'Καθαριότητα και είδη σπιτιού': 'χαρτί χαρτοπετσέτες απορρυπαντικό χλωρίνη σακούλες σφουγγάρι καθαριστικό μαλακτικό αλουμινόχαρτο μεμβράνη',
-    'Προσωπική φροντίδα': 'σαπούνι σαμπουάν οδοντόκρεμα οδοντόβουρτσα αφρόλουτρο αφρόλουτρα αφρός αφρό αποσμητικό ξυραφάκια σερβιέτες στοματικό μπατονέτες αντηλιακό κολόνια',
+    'Είδη υγιεινής και προσωπικής φροντίδας': 'σαπούνι σαμπουάν οδοντόκρεμα οδοντόβουρτσα αφρόλουτρο αφρόλουτρα αφρός αφρό αποσμητικό ξυραφάκια σερβιέτες στοματικό μπατονέτες αντηλιακό κολόνια',
     'Σχολικά και γραφική ύλη': 'τετράδιο τετράδια μολύβι μολύβια στυλό γόμα γόμες ξύστρα κασετίνα κασετίνες μαρκαδόρος μαρκαδόροι ξυλομπογιές νερομπογιές χάρακας διαβήτης μπλοκ χαρτόνι χαρτόνια ντοσιέ ντοσιέδες',
     'Βρεφικά είδη': 'πάνες μωρομάντηλα μωρομάντιλα',
     'Κατοικίδια': 'γατοτροφή σκυλοτροφή κροκέτες λιχουδιές',
@@ -93,7 +94,7 @@ const shoppingPhrases = new Map(Object.entries({
     'τροφή σκύλου': 'Κατοικίδια',
     'άμμος γάτας': 'Κατοικίδια',
     'βρεφικό γάλα': 'Βρεφικά είδη',
-    'αφρός ξυρίσματος': 'Προσωπική φροντίδα',
+    'αφρός ξυρίσματος': 'Είδη υγιεινής και προσωπικής φροντίδας',
     'χαρτί υγείας': 'Καθαριότητα και είδη σπιτιού',
     'χαρτί κουζίνας': 'Καθαριότητα και είδη σπιτιού',
     'λάδι μηχανής': 'Είδη σπιτιού και μικροεπισκευές',
