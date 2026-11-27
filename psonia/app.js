@@ -44,13 +44,15 @@ function splitRecognizedProducts(text) {
         const previous = normalized[i - 1];
         const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
         const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
-        const chocolateAndMilk = ['σοκολατα', 'σοκολατεσ'].includes(normalized[i - 2]) && previous === 'με' && normalized[i] === 'γαλα';
+        const qualifierIndex = shoppingArticles.has(previous) ? i - 2 : i - 1;
+        const chocolateAndMilk = qualifier === 'με' && normalized[i] === 'γαλα' &&
+            ['σοκολατα', 'σοκολατεσ'].includes(normalized[qualifierIndex - 1]);
         if (foundProduct && (compound || (shoppingQualifiers.has(qualifier) && !chocolateAndMilk))) continue;
         if (foundProduct) {
             let split = i;
             if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
             if (/^\d+(?:[,.]\d+)?$/.test(normalized[split - 1])) split--;
-            const end = normalized[split - 1] === 'και' || chocolateAndMilk ? split - 1 : split;
+            const end = chocolateAndMilk ? qualifierIndex : normalized[split - 1] === 'και' ? split - 1 : split;
             parts.push(words.slice(start, end).join(' '));
             start = split;
         }
