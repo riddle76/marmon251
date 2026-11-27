@@ -14,7 +14,7 @@ for (const [misspelling, correction] of Object.entries({
     παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο'
 })) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
 
-const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι', 'σχολικη τσαντα', 'ψωμι μπαγκετα', 'σαλατα ροκα', 'σαλατα μαρουλι', 'ψαρι μπακαλιαροσ', 'κρεμα αφρολουτρο'].map(normalizeShoppingWord));
+const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι', 'σχολικη τσαντα', 'ψωμι μπαγκετα', 'σαλατα ροκα', 'σαλατα μαρουλι', 'ψαρι μπακαλιαροσ', 'κρεμα αφρολουτρο', 'καθαριστικο πιατα', 'απορρυπαντικο πιατα', 'σαπουνι πιατα'].map(normalizeShoppingWord));
 const shoppingQualifiers = new Set(['με', 'χωρις', 'για', 'σε', 'απο']);
 const shoppingArticles = new Set(['το', 'τη', 'την', 'τα', 'τον']);
 const shoppingUnits = new Set(['κιλο', 'κιλα', 'γραμ', 'γραμμαρια', 'λιτρο', 'λιτρα', 'τεμαχιο', 'τεμαχια']);
@@ -47,12 +47,14 @@ function splitRecognizedProducts(text) {
         const qualifierIndex = shoppingArticles.has(previous) ? i - 2 : i - 1;
         const chocolateAndMilk = qualifier === 'με' && normalized[i] === 'γαλα' &&
             ['σοκολατα', 'σοκολατεσ'].includes(normalized[qualifierIndex - 1]);
-        if (foundProduct && (compound || (shoppingQualifiers.has(qualifier) && !chocolateAndMilk))) continue;
+        const hygieneAfterSnack = qualifier === 'με' && ['σοκολατα', 'σοκολατεσ', 'μπισκοτα', 'πατατακια'].includes(normalized[qualifierIndex - 1]) &&
+            ['αφρολουτρο', 'αφρολουτρα', 'σαπουνι', 'σαπουνια', 'σαμπουαν'].includes(normalized[i]);
+        if (foundProduct && (compound || (shoppingQualifiers.has(qualifier) && !chocolateAndMilk && !hygieneAfterSnack))) continue;
         if (foundProduct) {
             let split = i;
             if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
             if (/^\d+(?:[,.]\d+)?$/.test(normalized[split - 1])) split--;
-            const end = chocolateAndMilk ? qualifierIndex : normalized[split - 1] === 'και' ? split - 1 : split;
+            const end = chocolateAndMilk || hygieneAfterSnack ? qualifierIndex : normalized[split - 1] === 'και' ? split - 1 : split;
             parts.push(words.slice(start, end).join(' '));
             start = split;
         }
@@ -77,8 +79,10 @@ const shoppingCategories = new Map(Object.entries({
     'Τρόφιμα ντουλαπιού': 'ρύζι μακαρόνια ζυμαρικά σπαγγέτι πένες κριθαράκι αλεύρι ζάχαρη αλάτι πιπέρι μπαχαρικά δημητριακά βρώμη μέλι μαρμελάδα φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι πελτές κονσέρβα κονσέρβες σάλτσα μουστάρδα κέτσαπ μαγιονέζα ταχίνι',
     'Σνακ και γλυκά': 'σοκολάτα σοκολάτες μπισκότα γκοφρέτες πατατάκια ποπκόρν κράκερ καραμέλες ξηροί αμύγδαλα καρύδια σταφίδες',
     'Ποτά και ροφήματα': 'νερό χυμός χυμοί αναψυκτικό αναψυκτικά μπύρα μπίρα κρασί ούζο καφές τσάι κακάο λεμονάδα',
-    'Καθαριότητα και είδη σπιτιού': 'χαρτί χαρτοπετσέτες απορρυπαντικό χλωρίνη σακούλες σφουγγάρι καθαριστικό μαλακτικό αλουμινόχαρτο μεμβράνη',
-    'Είδη υγιεινής και προσωπικής φροντίδας': 'σαπούνι σαμπουάν οδοντόκρεμα οδοντόβουρτσα αφρόλουτρο αφρόλουτρα αφρός αφρό αποσμητικό ξυραφάκια σερβιέτες στοματικό μπατονέτες αντηλιακό κολόνια',
+    'Καθαριότητα και είδη σπιτιού': 'χαρτί χαρτοπετσέτες χλωρίνη σακούλες σφουγγάρι καθαριστικό αλουμινόχαρτο μεμβράνη',
+    'Πλύσιμο ρούχων': 'μαλακτικό μαλακτικά απορρυπαντικό απορρυπαντικά λευκαντικό',
+    'Πλύσιμο πιάτων και νεροχύτης': 'πιατόπανο πιατόπανα συρματάκι',
+    'Είδη υγιεινής και προσωπικής φροντίδας': 'σαπούνι σαπούνια σαμπουάν οδοντόκρεμα οδοντόβουρτσα αφρόλουτρο αφρόλουτρα αφρός αφρό αποσμητικό ξυραφάκια σερβιέτες στοματικό μπατονέτες αντηλιακό κολόνια',
     'Σχολικά και γραφική ύλη': 'τετράδιο τετράδια μολύβι μολύβια στυλό γόμα γόμες ξύστρα κασετίνα κασετίνες μαρκαδόρος μαρκαδόροι ξυλομπογιές νερομπογιές χάρακας διαβήτης μπλοκ χαρτόνι χαρτόνια ντοσιέ ντοσιέδες',
     'Βρεφικά είδη': 'πάνες μωρομάντηλα μωρομάντιλα',
     'Κατοικίδια': 'γατοτροφή σκυλοτροφή κροκέτες λιχουδιές',
@@ -114,6 +118,15 @@ const categoryProductWords = new Set([...shoppingCategories]
 
 function shoppingCategory(text) {
     const words = normalizeShoppingWord(correctShoppingSpelling(text)).match(/[\p{L}\p{N}]+/gu) || [];
+    const title = words.join(' ');
+    if (/(?:^| )(?:πιατων|πιατα|χεριων? πιατων|νεροχυτ[ηε][σ]?)(?: |$)/u.test(title) &&
+        /(?:^| )(?:σαπουνι[α]?|υγρο|καψελ[εσ]+|ταμπλετ[εα][σ]?|αλατι|λαμπρυντικο|απορρυπαντικο|σφουγγαρι|καθαριστικο)(?: |$)/u.test(title)) {
+        return 'Πλύσιμο πιάτων και νεροχύτης';
+    }
+    if (/(?:^| )(?:ρουχων|ρουχα|πλυντηριου|πλυντηριο|λεκιαδων|λεκεδων)(?: |$)/u.test(title) &&
+        /(?:^| )(?:απορρυπαντικο|σκονη|υγρο|καψουλ[εα][σ]?|ταμπλετ[εα][σ]?|μαλακτικο|σαπουνι[α]?|καθαριστικο)(?: |$)/u.test(title)) {
+        return 'Πλύσιμο ρούχων';
+    }
     if (words.some(word => shoppingCategories.get('Κατεψυγμένα').has(word))) return 'Κατεψυγμένα';
     for (let i = 0; i < words.length; i++) {
         const phrase = shoppingPhrases.get(words[i] + ' ' + words[i + 1]);
