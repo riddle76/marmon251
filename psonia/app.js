@@ -96,6 +96,12 @@ let busy = false;
 let pendingInvite = null;
 let editPhotoId = null;
 let selectedPhoto = '';
+let notificationSequence = null;
+let lastSentSequence = -1;
+let notificationPublicKey = '';
+const serviceWorkerReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('./sw.js')
+    .then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+
 
 function loadDevice() {
     try {
@@ -210,12 +216,14 @@ async function refresh(force = false) {
                 if (!snapshot.unchanged) {
                     products = snapshot.items;
                     favorites = snapshot.favorites || [];
+                    notificationSequence = snapshot.notificationSequence ?? null;
                 }
                 revision = snapshot.revision;
             }
             role = snapshot.role;
             error = '';
             render();
+            if (!document.hidden) void syncNotificationState();
         } catch (failure) {
             if (device.connection !== connection) return;
             error = failure.status === 401 ? 'Η πρόσβαση έληξε ή αφαιρέθηκε.' : 'Δεν έγινε συγχρονισμός. Η εφαρμογή θα δοκιμάσει ξανά.';
@@ -280,6 +288,7 @@ function showShare() {
     $('#share-status').textContent = device.connection ? 'Αυτή η συσκευή είναι συνδεδεμένη στην κοινή λίστα.' :
         pendingInvite ? 'Έχεις λάβει πρόσκληση για την κοινή λίστα.' : 'Για κοινή λίστα χρειάζεται ενεργός διακομιστής συγχρονισμού.';
     $('#share').showModal();
+    void showNotificationSettings();
 }
 
 function readInvite() {
@@ -419,6 +428,96 @@ $('#photo-save').onclick = async () => {
     else $('#photo-status').textContent = error;
 };
 
+
+async function syncNotificationState() {
+    const connection = device.connection;
+    const sequence = notificationSequence;
+    if (document.hidden || (connection && sequence === lastSentSequence)) return;
+    const registration = await serviceWorkerReady;
+    if (!registration?.active || connection !== device.connection || document.hidden) return;
+    registration.active.postMessage({ type: 'shopping-notification-state', connection,
+        seenSequence: Number.isSafeInteger(sequence) ? sequence : null });
+
+}
+
+async function showNotificationSettings() {
+    const section = $('#notification-options');
+    section.hidden = !device.connection;
+    if (!device.connection) return;
+    const connection = device.connection;
+    const button = $('#enable-notifications');
+    const status = $('#notification-status');
+    button.disabled = true;
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (iphone && !installed) {
+        status.textContent = 'Άνοιξε τα Κοινά Ψώνια από το εικονίδιο στην αρχική οθόνη για να ενεργοποιήσεις ειδοποιήσεις.';
+        return;
+    }
+    if (!('Notification' in window) || !('PushManager' in window)) {
+        status.textContent = 'Αυτός ο περιηγητής δεν υποστηρίζει ειδοποιήσεις για την εφαρμογή.';
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        status.textContent = 'Επίτρεψε τις ειδοποιήσεις για τα Κοινά Ψώνια στις Ρυθμίσεις του κινητού.';
+        return;
+    }
+    status.textContent = 'Έλεγχος ειδοποιήσεων…';
+    try {
+        const settings = await api('/notification-settings');
+        const registration = await serviceWorkerReady;
+        if (connection !== device.connection) return;
+        if (!registration?.active) throw new Error('Η εφαρμογή προετοιμάζεται. Κλείσε και άνοιξέ την ξανά.');
+        notificationPublicKey = settings.publicKey;
+        const subscription = await registration.pushManager.getSubscription();
+        button.textContent = subscription ? 'Απενεργοποίηση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων';
+        status.textContent = subscription ? 'Οι ειδοποιήσεις είναι ενεργές σε αυτή τη συσκευή.' :
+            'Ο αριθμός στο εικονίδιο δείχνει τις νέες προσθήκες του άλλου και μηδενίζεται όταν ανοίγεις τη λίστα. Θα εμφανίζεται και ειδοποίηση χωρίς ήχο.';
+        button.disabled = false;
+    } catch (failure) {
+        status.textContent = failure.status === 404 ? 'Χρειάζεται πρώτα ενημέρωση της υπηρεσίας ειδοποιήσεων.' :
+            failure.status ? 'Η υπηρεσία ειδοποιήσεων δεν είναι διαθέσιμη αυτή τη στιγμή.' : failure.message;
+    }
+}
+
+function notificationKey(value) {
+    return Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), character => character.charCodeAt(0));
+}
+
+$('#enable-notifications').onclick = async () => {
+    const button = $('#enable-notifications');
+    const status = $('#notification-status');
+    const connection = device.connection;
+    button.disabled = true;
+    // Ask immediately from the tap, before any network request, as required on iPhone.
+    const permission = Notification.permission === 'default' ? Notification.requestPermission() : Promise.resolve(Notification.permission);
+    try {
+        if (await permission !== 'granted') throw new Error('Χρειάζεται να επιτρέψεις τις ειδοποιήσεις.');
+        const registration = await serviceWorkerReady;
+        if (!registration?.active || !connection || connection !== device.connection) return;
+        let subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+            await api('/push-subscription', { method: 'DELETE' });
+            await subscription.unsubscribe();
+            registration.active.postMessage({ type: 'shopping-notification-state', connection: null });
+        } else {
+            subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: notificationKey(notificationPublicKey) });
+            try {
+                await api('/push-subscription', { method: 'POST', body: { endpoint: subscription.endpoint } });
+            } catch (failure) {
+                await subscription.unsubscribe();
+                throw failure;
+            }
+            lastSentSequence = -1;
+            await syncNotificationState();
+        }
+        await showNotificationSettings();
+    } catch (failure) {
+        status.textContent = failure.message;
+        button.disabled = false;
+    }
+};
+
 $('#invite-open').onclick = showShare;
 $('#connect').onsubmit = async event => {
     event.preventDefault();
@@ -458,8 +557,19 @@ $('#copy-invite').onclick = async () => {
     try { await navigator.clipboard.writeText($('#invite-link').value); $('#share-status').textContent = 'Αντιγράφηκε ο σύνδεσμος.'; }
     catch { $('#invite-link').select(); }
 };
-$('#disconnect').onclick = () => {
+$('#disconnect').onclick = async () => {
     if (role === 'owner' && !confirm('Η αποσύνδεση αφαιρεί το δικαίωμα διαχείρισης από αυτή τη συσκευή. Συνέχεια;')) return;
+    if (device.connection) {
+        try { await api('/push-subscription', { method: 'DELETE' }); } catch {}
+    }
+    const registration = await serviceWorkerReady;
+    registration?.active?.postMessage({ type: 'shopping-notification-state', connection: null });
+    if (registration) {
+        const subscription = await registration.pushManager?.getSubscription();
+        if (subscription) await subscription.unsubscribe();
+    }
+    notificationSequence = null;
+    lastSentSequence = -1;
     saveDevice({ ...device, connection: null });
     products = device.local;
     favorites = device.favorites;
@@ -491,7 +601,17 @@ render();
 readInvite();
 render();
 void refresh();
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastSentSequence = -1; void refresh(); } });
 window.addEventListener('online', () => void refresh());
 setInterval(() => { if (!document.hidden) void refresh(); }, 8000);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data?.type === 'shopping-list-updated' && !document.hidden) void refresh(true);
+        if (event.data?.type === 'shopping-notifications-read' && event.data.sequence === notificationSequence) lastSentSequence = event.data.sequence;
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        lastSentSequence = -1;
+        void syncNotificationState();
+    });
+}
+
