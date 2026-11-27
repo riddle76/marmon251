@@ -1,0 +1,11 @@
+{
+  "name": "Σημειωματάριο · Marmon 251",
+  "short_name": "Σημειωματάριο",
+  "lang": "el",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#151222",
+  "theme_color": "#151222",
+  "icons": [{"src":"../icon.png","sizes":"1024x1024","type":"image/png","purpose":"any"}]
+}
