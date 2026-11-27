@@ -114,8 +114,6 @@ const dialog = document.querySelector('#editor');
 const editor = document.querySelector('#editor-body');
 let selectedTab = 'today';
 let selectedYear = new Date().getFullYear();
-let lastChecked = null;
-let showChecked = false;
 let data = loadData();
 
 function loadData() {
@@ -127,7 +125,7 @@ function loadData() {
     }
 }
 
-function changeData(change, refresh = true) {
+function changeData(change) {
     const next = structuredClone(data);
     change(next);
     try {
@@ -137,7 +135,7 @@ function changeData(change, refresh = true) {
         return false;
     }
     data = next;
-    if (refresh) render();
+    render();
     return true;
 }
 
@@ -247,7 +245,7 @@ function renderShoppingGroups(items, row) {
     const groups = new Map([...shoppingCategories.keys(), 'Λοιπά'].map(category => [category, []]));
     for (const item of items) groups.get(shoppingCategory(item.text)).push(item);
     return [...groups].filter(([, group]) => group.length).map(([category, group]) =>
-        '<section class="shopping-group"><h3>' + category + '</h3>' + group.map(item => row(item, false) +
+        '<section class="shopping-group"><h3>' + category + '</h3>' + group.map(item => row(item) +
             (splitShopping(item.text).length > 1 ? button('split-item', 'Διαχωρισμός προϊόντων',
                 'data-id="' + safe(item.id) + '" aria-label="Διαχωρισμός προϊόντων για ' + safe(item.text) + '"') : '')
         ).join('') + '</section>').join('');
@@ -255,20 +253,17 @@ function renderShoppingGroups(items, row) {
 
 function renderShopping() {
     const pending = data.shopping.filter(item => !item.done);
-    const completed = data.shopping.filter(item => item.done);
-    const row = (item, checked) => button('check', '<span aria-hidden="true">' + (checked ? '✓' : '○') +
-        '</span>' + safe(correctShoppingSpelling(item.text)), 'class="item' + (checked ? ' strike' : '') + '" data-id="' + safe(item.id) + '"');
+    const row = item => button('delete-shopping', '<span aria-hidden="true">✓</span>' +
+        safe(correctShoppingSpelling(item.text)), 'class="item" data-id="' + safe(item.id) +
+        '" aria-label="Διαγραφή προϊόντος: ' + safe(correctShoppingSpelling(item.text)) + '"');
     return '<form class="card" id="shopping-form">' +
         '<label for="shopping-input"><strong>Τι χρειάζεσαι;</strong></label>' +
         '<textarea id="shopping-input" name="items" spellcheck="true" placeholder="Γάλα πατάτες 6 αυγά" required></textarea>' +
         '<p class="muted">Γράψε ή πες «γάλα πατάτες 6 αυγά». Για προϊόντα που χρειάζονται σαφή διαχωρισμό, βάλε κόμμα ή πες «επόμενο».</p>' +
         '<button class="primary wide">Προσθήκη στη λίστα</button></form>' +
         '<h2>Στη λίστα απομένουν ' + pending.length + '</h2>' +
-        (renderShoppingGroups(pending, row) || '<p class="muted">Η λίστα σου είναι άδεια.</p>') +
-        (lastChecked ? button('undo', 'Αναίρεση τελευταίου') : '') +
-        (completed.length ? '<div class="card">' + button('completed', (showChecked ? 'Απόκρυψη' : 'Εμφάνιση') +
-            ' τσεκαρισμένων (' + completed.length + ')', 'aria-expanded="' + showChecked + '"') +
-            (showChecked ? completed.map(item => row(item, true)).join('') : '') + '</div>' : '');
+        (pending.length ? '<p class="muted">Πάτησε ένα προϊόν για να το διαγράψεις από τη λίστα.</p>' : '') +
+        (renderShoppingGroups(pending, row) || '<p class="muted">Η λίστα σου είναι άδεια.</p>');
 }
 
 function renderLeave() {
@@ -445,6 +440,8 @@ function renderNotes() {
     const options = tags.map(([key, label]) => '<option value="' + safe(key) + '"' +
         (key === activeNoteTag ? ' selected' : '') + '>' + safe(label) + '</option>').join('');
     return button('new-note', '+ Νέα σημείωση', 'class="primary wide"') +
+        '<div class="split note-capture-actions">' + button('quick-camera', 'Λήψη φωτογραφίας') +
+        button('quick-library', 'Ανέβασμα αρχείου') + '</div>' +
         '<label for="note-search">Αναζήτηση</label><input id="note-search" type="search" value="' + safe(noteSearch) + '">' +
         (tags.length ? '<label for="note-tag-filter">Ετικέτα</label><select id="note-tag-filter">' +
             '<option value="">Όλες οι ετικέτες</option>' + options + '</select>' : '') +
@@ -492,7 +489,7 @@ function editRecord(kind, item) {
         '<input id="note-camera" type="file" accept="image/*" capture="environment" class="visually-hidden">' +
         '<label class="photo-action" for="note-camera">Λήψη φωτογραφίας</label>' +
         '<input id="note-library" type="file" accept="image/*" class="visually-hidden">' +
-        '<label class="photo-action" for="note-library">Από τη συλλογή</label></div>' +
+        '<label class="photo-action" for="note-library">Ανέβασμα αρχείου</label></div>' +
         '<p id="photo-status" class="muted" role="status"></p>' +
         '<img id="photo-preview" hidden alt="Προεπισκόπηση φωτογραφίας σημείωσης">' +
         '<button type="button" id="clear-note-photo" hidden>Αφαίρεση φωτογραφίας</button></fieldset>';
@@ -676,15 +673,17 @@ function backupDownload() {
 }
 
 const appearanceKey = 'marmon-neo-appearance';
-const palettes = { violet: 'Μωβ', blue: 'Μπλε', green: 'Πράσινο', rose: 'Ροζ' };
+const palettes = { blue: 'Μπλε', green: 'Πράσινο', graphite: 'Γκρι' };
 const appearanceModes = { system: 'Αυτόματο', light: 'Φωτεινό', dark: 'Σκούρο' };
 
 function loadAppearance() {
     try {
         const saved = JSON.parse(localStorage.getItem(appearanceKey));
-        if (Object.hasOwn(palettes, saved?.palette) && Object.hasOwn(appearanceModes, saved?.mode)) return saved;
+        if (Object.hasOwn(appearanceModes, saved?.mode)) {
+            return { palette: Object.hasOwn(palettes, saved.palette) ? saved.palette : 'blue', mode: saved.mode };
+        }
     } catch {}
-    return { palette: 'violet', mode: 'system' };
+    return { palette: 'blue', mode: 'system' };
 }
 
 function applyAppearance(appearance) {
@@ -752,7 +751,7 @@ view.addEventListener('submit', event => {
     const fields = new FormData(event.target);
     if (event.target.id === 'shopping-form') {
         const items = splitShopping(fields.get('items'));
-        if (items.length) changeData(next => next.shopping.push(...items.map(text => ({ id: crypto.randomUUID(), text, done: false }))));
+        if (items.length) changeData(next => next.shopping.push(...items.map(text => ({ id: crypto.randomUUID(), text }))));
     } else if (event.target.id === 'entitlement-form') {
         changeData(next => { next.entitlements[selectedYear] = Number(fields.get('entitlement')); });
     }
@@ -762,24 +761,20 @@ document.addEventListener('click', event => {
     const target = event.target.closest('[data-action]');
     if (!target) return;
     const { action, id, kind } = target.dataset;
-    if (action === 'check' || action === 'undo') {
-        const item = data.shopping.find(item => item.id === (action === 'undo' ? lastChecked : id));
-        if (!item) return;
-        const wasChecked = item.done;
-        if (changeData(next => { next.shopping.find(entry => entry.id === item.id).done = !wasChecked; }, false)) {
-            lastChecked = wasChecked ? null : item.id;
-            render();
-        }
+    if (action === 'delete-shopping') {
+        changeData(next => {
+            next.shopping = next.shopping.filter(item => item.id !== id);
+        });
     } else if (action === 'split-item') {
         const index = data.shopping.findIndex(item => item.id === id && !item.done);
         if (index === -1) return;
         const items = splitShopping(data.shopping[index].text);
         if (items.length > 1) changeData(next => {
-            next.shopping.splice(index, 1, ...items.map(text => ({ id: crypto.randomUUID(), text, done: false })));
+            next.shopping.splice(index, 1, ...items.map(text => ({ id: crypto.randomUUID(), text })));
         });
-    } else if (action === 'completed') {
-        showChecked = !showChecked;
-        render();
+    } else if (action === 'quick-camera' || action === 'quick-library') {
+        editRecord('notes');
+        editor.querySelector(action === 'quick-camera' ? '#note-camera' : '#note-library').click();
     } else if (action === 'new-leave') openLeave();
     else if (action === 'new-appointment' || action === 'edit-appointment') {
         editRecord('appointments', data.appointments.find(item => item.id === id));
