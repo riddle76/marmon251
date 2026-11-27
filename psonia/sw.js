@@ -1,5 +1,5 @@
-const cacheName = 'marmon-psonia-shell-v5';
-const files = ['./', './index.html', './app.js?v=5', './manifest.webmanifest', './icon.svg'];
+const cacheName = 'marmon-psonia-shell-v6';
+const files = ['./', './index.html', './app.js?v=6', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(files)).then(() => self.skipWaiting()));
 });
@@ -87,6 +87,8 @@ self.addEventListener('message', event => {
             !/^[a-f0-9]{64}$/.test(connection.token)) return;
         await notificationConnection({ endpoint: endpoint.href.replace(/\/$/, ''), token: connection.token });
         if (!Number.isSafeInteger(message.seenSequence) || message.seenSequence < 0) return;
+        const source = event.source?.id ? await self.clients.get(event.source.id) : null;
+        if (source?.visibilityState !== 'visible' || !source.focused) return;
         try {
             await notificationRequest(connection, '/notifications/seen', { sequence: message.seenSequence });
             const state = await notificationRequest(connection, '/notifications');
