@@ -11,7 +11,7 @@ const shoppingWords = new Map(
         .map(word => [normalizeShoppingWord(word), word])
 );
 for (const [misspelling, correction] of Object.entries({
-    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο'
+    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο', αφρολουτρo: 'αφρόλουτρο', αφρολουτρω: 'αφρόλουτρο', αφρολουδρο: 'αφρόλουτρο', αφρολουτρα: 'αφρόλουτρα'
 })) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
 
 const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι', 'σχολικη τσαντα', 'ψωμι μπαγκετα', 'σαλατα ροκα', 'σαλατα μαρουλι', 'ψαρι μπακαλιαροσ', 'κρεμα αφρολουτρο', 'καθαριστικο πιατα', 'απορρυπαντικο πιατα', 'σαπουνι πιατα'].map(normalizeShoppingWord));
@@ -24,7 +24,10 @@ function normalizeShoppingWord(word) {
 }
 
 function correctShoppingSpelling(text) {
-    return text.replace(/[\p{Script=Greek}\p{M}]+/gu, word => {
+    return text.replace(/(?<!\p{L})(αφρ[όο])[- ]+λ[ούοι]+τρ([οα])(?!\p{L})/giu, (_, prefix, ending) =>
+        (prefix === prefix.toLocaleUpperCase('el') ? 'ΑΦΡΟΛΟΥΤΡ' + ending.toLocaleUpperCase('el') :
+            (prefix[0] === 'Α' ? 'Αφρόλουτρ' : 'αφρόλουτρ') + ending)
+    ).replace(/[\p{Script=Greek}\p{M}]+/gu, word => {
         const correct = shoppingWords.get(normalizeShoppingWord(word));
         if (!correct) return word;
         if (word === word.toLocaleUpperCase('el')) return correct.toLocaleUpperCase('el');
@@ -35,7 +38,7 @@ function correctShoppingSpelling(text) {
 
 function splitRecognizedProducts(text) {
     const words = text.split(/\s+/);
-    const normalized = words.map(normalizeShoppingWord);
+    const normalized = words.map(word => normalizeShoppingWord(word).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''));
     const parts = [];
     let start = 0;
     let foundProduct = false;
@@ -65,7 +68,7 @@ function splitRecognizedProducts(text) {
 }
 
 function splitShopping(text) {
-    return text.split(/[\n;!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
+    return text.split(/[\n;:!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
         .map(item => correctShoppingSpelling(item.trim())).filter(Boolean).flatMap(splitRecognizedProducts);
 }
 
