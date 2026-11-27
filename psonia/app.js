@@ -11,7 +11,7 @@ const shoppingWords = new Map(
         .map(word => [normalizeShoppingWord(word), word])
 );
 for (const [misspelling, correction] of Object.entries({
-    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο', αφρολουτρo: 'αφρόλουτρο', αφρολουτρω: 'αφρόλουτρο', αφρολουδρο: 'αφρόλουτρο', αφρολουτρα: 'αφρόλουτρα'
+    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', μτοματες: 'ντομάτες',  γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί', μπυρες: 'μπύρες', μπιρες: 'μπίρες', αφρον: 'αφρός', αφρολιτρο: 'αφρόλουτρο', αφρολιτρα: 'αφρόλουτρα', αφρολουτρον: 'αφρόλουτρο', αφρολουτρo: 'αφρόλουτρο', αφρολουτρω: 'αφρόλουτρο', αφρολουδρο: 'αφρόλουτρο', αφρολουτρα: 'αφρόλουτρα'
 })) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
 
 const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι', 'σχολικη τσαντα', 'ψωμι μπαγκετα', 'σαλατα ροκα', 'σαλατα μαρουλι', 'ψαρι μπακαλιαροσ', 'κρεμα αφρολουτρο', 'καθαριστικο πιατα', 'απορρυπαντικο πιατα', 'σαπουνι πιατα'].map(normalizeShoppingWord));
@@ -174,7 +174,7 @@ let selectedPhoto = '';
 let notificationSequence = null;
 let lastSentSequence = -1;
 let notificationPublicKey = '';
-const serviceWorkerReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('./sw.js')
+const serviceWorkerReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
     .then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
 
 
