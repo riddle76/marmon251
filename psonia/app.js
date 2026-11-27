@@ -434,9 +434,9 @@ $('#photo-save').onclick = async () => {
 async function syncNotificationState() {
     const connection = device.connection;
     const sequence = notificationSequence;
-    if (document.hidden || (connection && sequence === lastSentSequence)) return;
+    if (document.hidden || !document.hasFocus() || (connection && sequence === lastSentSequence)) return;
     const registration = await serviceWorkerReady;
-    if (!registration?.active || connection !== device.connection || document.hidden) return;
+    if (!registration?.active || connection !== device.connection || document.hidden || !document.hasFocus()) return;
     registration.active.postMessage({ type: 'shopping-notification-state', connection,
         seenSequence: Number.isSafeInteger(sequence) ? sequence : null });
 
@@ -622,6 +622,7 @@ readInvite();
 render();
 void refresh();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastSentSequence = -1; void refresh(); } });
+window.addEventListener('focus', () => { if (!document.hidden) void refresh(true); });
 window.addEventListener('online', () => void refresh());
 setInterval(() => { if (!document.hidden) void refresh(); }, 8000);
 if ('serviceWorker' in navigator) {
