@@ -1,7 +1,7 @@
-const cacheName = 'marmon-psonia-shell-v13';
-const files = ['./', './index.html', './app.js?v=13', './manifest.webmanifest', './icon.svg'];
+const cacheName = 'marmon-psonia-shell-v14';
+const files = ['./', './index.html', './app.js?v=14', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
-    event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(files)).then(() => self.skipWaiting()));
+    event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(files.map(file => new Request(new URL(file, self.registration.scope), { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
     event.waitUntil(caches.keys().then(keys => Promise.all(keys
@@ -12,7 +12,7 @@ self.addEventListener('fetch', event => {
     const { request } = event;
     if (request.method !== 'GET' || !request.url.startsWith(self.registration.scope) ||
         !files.some(file => file.split('?')[0] === './' + new URL(request.url).pathname.slice(new URL(self.registration.scope).pathname.length))) return;
-    event.respondWith(fetch(request).catch(async () =>
+    event.respondWith(fetch(request, { cache: 'no-cache' }).catch(async () =>
         await (await caches.open(cacheName)).match(request, { ignoreSearch: true }) || Response.error()));
 });
 
