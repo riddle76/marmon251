@@ -154,17 +154,22 @@ function prettyDate(value) {
     return new Intl.DateTimeFormat('el-GR', options).format(date);
 }
 
-const shoppingProducts = new Set(
-    ('γαλα πατατα πατατες ψωμι αυγο αυγα αβγο αβγα γιαουρτι γιαουρτια τυρι τυρια φετα βουτυρο ' +
-    'τυροσαλατα κασερι γραβιερα γαλοπουλα ζαμπον μπεικον παριζα κοτοπουλο κιμας κρεας μπριζολες ' +
-    'ψαρι ψαρια τονος σαρδελες ρυζι μακαρονια ζυμαρικα σπαγγετι αλευρι ζαχαρη αλατι πιπερι ' +
-    'καφες τσαι κακαο σοκολατα μπισκοτα φρυγανιες δημητριακα βρωμη μελι μαρμελαδα ' +
-    'μηλο μηλα μπανανα μπανανες πορτοκαλι πορτοκαλια λεμονι λεμονια αχλαδι αχλαδια φραουλες σταφυλια ' +
-    'ντοματα ντοματες ντοματακια αγγουρι αγγουρια κρεμμυδι κρεμμυδια σκορδο καροτο καροτα ' +
-    'μαρουλι λαχανο μπροκολο κολοκυθια μελιτζανες πιπεριες μανιταρια σπανακι ' +
-    'φακες ρεβιθια φασολια αρακας ελιες λαδι ελαιολαδο ξυδι νερο χυμος αναψυκτικα μπυρα κρασι ' +
-    'χαρτι σαπουνι σαμπουαν οδοντοκρεμα απορρυπαντικο χλωρινη σακουλες τοστ κρεμα').split(' ').map(normalizeShoppingWord)
+const shoppingWords = new Map(
+    ('γάλα πατάτα πατάτες ψωμί αυγό αυγά αβγό αβγά γιαούρτι γιαούρτια τυρί τυριά φέτα βούτυρο ' +
+    'τυροσαλάτα κασέρι γραβιέρα γαλοπούλα ζαμπόν μπέικον πάριζα κοτόπουλο κιμάς κρέας μπριζόλες ' +
+    'ψάρι ψάρια τόνος σαρδέλες ρύζι μακαρόνια ζυμαρικά σπαγγέτι αλεύρι ζάχαρη αλάτι πιπέρι ' +
+    'καφές τσάι κακάο σοκολάτα μπισκότα φρυγανιές δημητριακά βρώμη μέλι μαρμελάδα ' +
+    'μήλο μήλα μπανάνα μπανάνες πορτοκάλι πορτοκάλια λεμόνι λεμόνια αχλάδι αχλάδια φράουλες σταφύλια ' +
+    'ντομάτα ντομάτες ντοματάκια αγγούρι αγγούρια κρεμμύδι κρεμμύδια σκόρδο καρότο καρότα ' +
+    'μαρούλι λάχανο μπρόκολο κολοκύθια μελιτζάνες πιπεριές μανιτάρια σπανάκι ' +
+    'φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι νερό χυμός αναψυκτικά μπύρα κρασί ' +
+    'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες τοστ κρέμα').split(' ')
+        .map(word => [normalizeShoppingWord(word), word])
 );
+for (const [misspelling, correction] of Object.entries({
+    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί'
+})) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
+
 const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι']);
 const shoppingQualifiers = new Set(['με', 'χωρις', 'για', 'σε', 'απο']);
 const shoppingArticles = new Set(['το', 'τη', 'την', 'τα', 'τον']);
@@ -174,6 +179,16 @@ function normalizeShoppingWord(word) {
     return word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
 }
 
+function correctShoppingSpelling(text) {
+    return text.replace(/[\p{Script=Greek}\p{M}]+/gu, word => {
+        const correct = shoppingWords.get(normalizeShoppingWord(word));
+        if (!correct) return word;
+        if (word === word.toLocaleUpperCase('el')) return correct.toLocaleUpperCase('el');
+        if (word[0] === word[0].toLocaleUpperCase('el')) return correct[0].toLocaleUpperCase('el') + correct.slice(1);
+        return correct;
+    });
+}
+
 function splitRecognizedProducts(text) {
     const words = text.split(/\s+/);
     const normalized = words.map(normalizeShoppingWord);
@@ -181,7 +196,7 @@ function splitRecognizedProducts(text) {
     let start = 0;
     let foundProduct = false;
     for (let i = 0; i < words.length; i++) {
-        if (!shoppingProducts.has(normalized[i])) continue;
+        if (!shoppingWords.has(normalized[i])) continue;
         const previous = normalized[i - 1];
         const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
         const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
@@ -201,7 +216,7 @@ function splitRecognizedProducts(text) {
 
 function splitShopping(text) {
     return text.split(/[\n;!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
-        .map(item => item.trim()).filter(Boolean).flatMap(splitRecognizedProducts);
+        .map(item => item.trim()).filter(Boolean).flatMap(splitRecognizedProducts).map(correctShoppingSpelling);
 }
 
 function button(action, title, extra = '') {
@@ -212,10 +227,10 @@ function renderShopping() {
     const pending = data.shopping.filter(item => !item.done);
     const completed = data.shopping.filter(item => item.done);
     const row = (item, checked) => button('check', '<span aria-hidden="true">' + (checked ? '✓' : '○') +
-        '</span>' + safe(item.text), 'class="item' + (checked ? ' strike' : '') + '" data-id="' + safe(item.id) + '"');
+        '</span>' + safe(correctShoppingSpelling(item.text)), 'class="item' + (checked ? ' strike' : '') + '" data-id="' + safe(item.id) + '"');
     return '<form class="card" id="shopping-form">' +
         '<label for="shopping-input"><strong>Τι χρειάζεσαι;</strong></label>' +
-        '<textarea id="shopping-input" name="items" placeholder="Γάλα πατάτες 6 αυγά" required></textarea>' +
+        '<textarea id="shopping-input" name="items" spellcheck="true" placeholder="Γάλα πατάτες 6 αυγά" required></textarea>' +
         '<p class="muted">Γράψε ή πες «γάλα πατάτες 6 αυγά». Για προϊόντα που χρειάζονται σαφή διαχωρισμό, βάλε κόμμα ή πες «επόμενο».</p>' +
         '<button class="primary wide">Προσθήκη στη λίστα</button></form>' +
         '<h2>Στη λίστα απομένουν ' + pending.length + '</h2>' +
