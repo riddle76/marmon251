@@ -115,7 +115,7 @@ async function sendShoppingPush(db, list, actor, origin) {
         });
         // An empty Web Push message wakes the service worker, which fetches the current count securely.
         const response = await fetch(subscription.endpoint, {
-            method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000),
+            method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000),
             headers: { TTL: '86400', Topic: 'shopping-additions', Urgency: 'normal',
                 Authorization: 'vapid t=' + signingInput + '.' + base64url(signature) + ', k=' + keys.public_key }
         }).catch(error => {
