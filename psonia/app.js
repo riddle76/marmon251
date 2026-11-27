@@ -14,7 +14,7 @@ for (const [misspelling, correction] of Object.entries({
     παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί'
 })) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
 
-const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι']);
+const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι'].map(normalizeShoppingWord));
 const shoppingQualifiers = new Set(['με', 'χωρις', 'για', 'σε', 'απο']);
 const shoppingArticles = new Set(['το', 'τη', 'την', 'τα', 'τον']);
 const shoppingUnits = new Set(['κιλο', 'κιλα', 'γραμ', 'γραμμαρια', 'λιτρο', 'λιτρα', 'τεμαχιο', 'τεμαχια']);
@@ -44,7 +44,7 @@ function splitRecognizedProducts(text) {
         const previous = normalized[i - 1];
         const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
         const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
-        if (compound || shoppingQualifiers.has(qualifier)) continue;
+        if (foundProduct && (compound || shoppingQualifiers.has(qualifier))) continue;
         if (foundProduct) {
             let split = i;
             if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
@@ -60,7 +60,7 @@ function splitRecognizedProducts(text) {
 
 function splitShopping(text) {
     return text.split(/[\n;!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
-        .map(item => item.trim()).filter(Boolean).flatMap(splitRecognizedProducts).map(correctShoppingSpelling);
+        .map(item => correctShoppingSpelling(item.trim())).filter(Boolean).flatMap(splitRecognizedProducts);
 }
 
 const shoppingCategories = new Map(Object.entries({
