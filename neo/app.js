@@ -370,31 +370,85 @@ function editRecord(kind, item) {
     const title = appointment ? 'Ραντεβού' : 'Σημείωση';
     const content = appointment ?
         '<label>Ημερομηνία και ώρα<input type="datetime-local" name="datetime" required value="' + safe(item?.datetime) + '"></label>' :
-        '<label>Φωτογραφία<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"></label>';
-    openEditor(title, '<form id="record-form"><label>Τίτλος<input name="title" required value="' + safe(item?.title) +
-        '"></label>' + content + '<label>Σημείωση<textarea name="text">' + safe(appointment ? item?.comments : item?.text) +
+        '<fieldset class="note-photo"><legend>Φωτογραφία</legend><div class="row">' +
+        '<input id="note-camera" type="file" accept="image/*" capture="environment" class="visually-hidden">' +
+        '<label class="photo-action" for="note-camera">Λήψη φωτογραφίας</label>' +
+        '<input id="note-library" type="file" accept="image/*" class="visually-hidden">' +
+        '<label class="photo-action" for="note-library">Από τη συλλογή</label></div>' +
+        '<p id="photo-status" class="muted" role="status"></p>' +
+        '<img id="photo-preview" hidden alt="Προεπισκόπηση φωτογραφίας σημείωσης">' +
+        '<button type="button" id="clear-note-photo" hidden>Αφαίρεση φωτογραφίας</button></fieldset>';
+    openEditor(title, '<form id="record-form"><label>Τίτλος<input name="title" ' + (appointment ? 'required ' : '') +
+        'value="' + safe(item?.title) + '"></label>' + content + '<label>Σημείωση<textarea name="text">' +
+        safe(appointment ? item?.comments : item?.text) +
         '</textarea></label><button class="primary wide">Αποθήκευση</button></form>' +
         (item ? button('remove-record', 'Διαγραφή', 'data-id="' + safe(item.id) + '" data-kind="' + kind + '"') : ''));
-    editor.querySelector('form').onsubmit = async event => {
+    const form = editor.querySelector('form');
+    const photo = appointment ? null : setupNotePhoto(form, item?.photo);
+    form.onsubmit = event => {
         event.preventDefault();
-        const form = event.currentTarget;
+        if (photo?.busy) return;
         const fields = new FormData(form);
         const id = item?.id || crypto.randomUUID();
         const title = fields.get('title').trim();
-        if (!title) return;
         const text = fields.get('text').trim();
-        let record = { id, title, datetime: fields.get('datetime'), comments: text };
-        if (!appointment) {
-            let photo = item?.photo || '';
-            const file = fields.get('image');
-            if (file.size) {
-                try { photo = await photoData(file); }
-                catch { alert('Η φωτογραφία δεν άνοιξε. Δοκίμασε ένα αρχείο JPG ή PNG.'); return; }
-            }
-            record = { id, title, text, photo };
+        if (!title && (appointment || (!text && !photo.value))) {
+            alert(appointment ? 'Γράψε έναν τίτλο για το ραντεβού.' : 'Πρόσθεσε τίτλο, κείμενο ή φωτογραφία.');
+            return;
         }
+        const record = appointment ?
+            { id, title, datetime: fields.get('datetime'), comments: text } :
+            { id, title: title || (photo.value ? 'Φωτογραφία' : 'Σημείωση'), text, photo: photo.value };
         if (changeData(next => { next[kind] = [...next[kind].filter(entry => entry.id !== id), record]; })) dialog.close();
     };
+}
+
+function setupNotePhoto(form, savedPhoto) {
+    const photo = { value: validPhoto(savedPhoto) ? savedPhoto : '', busy: false };
+    const preview = form.querySelector('#photo-preview');
+    const clear = form.querySelector('#clear-note-photo');
+    const status = form.querySelector('#photo-status');
+    const save = form.querySelector('button[type="submit"], button.primary');
+    let selection = 0;
+
+    function updatePreview() {
+        if (photo.value) preview.src = photo.value;
+        else preview.removeAttribute('src');
+        preview.hidden = !photo.value;
+        clear.hidden = !photo.value;
+    }
+
+    for (const picker of form.querySelectorAll('input[type="file"]')) {
+        picker.onchange = async () => {
+            const file = picker.files[0];
+            if (!file) return;
+            picker.value = '';
+            const selected = ++selection;
+            photo.busy = save.disabled = true;
+            status.textContent = 'Ετοιμάζεται η φωτογραφία…';
+            try {
+                const converted = await photoData(file);
+                if (selected !== selection) return;
+                if (!validPhoto(converted)) throw new Error('Image conversion failed');
+                photo.value = converted;
+                status.textContent = 'Έτοιμη. Πάτησε Αποθήκευση για να μείνει στη σημείωση.';
+                updatePreview();
+            } catch {
+                if (selected === selection) status.textContent = 'Η εικόνα δεν άνοιξε. Δοκίμασε μια λήψη από την κάμερα ή μια εικόνα JPG/PNG.';
+            } finally {
+                if (selected === selection) photo.busy = save.disabled = false;
+            }
+        };
+    }
+    clear.onclick = () => {
+        ++selection;
+        photo.value = '';
+        photo.busy = save.disabled = false;
+        status.textContent = '';
+        updatePreview();
+    };
+    updatePreview();
+    return photo;
 }
 
 async function photoData(file) {
@@ -494,6 +548,53 @@ function backupDownload() {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+
+const appearanceKey = 'marmon-neo-appearance';
+const palettes = { violet: 'Μωβ', blue: 'Μπλε', green: 'Πράσινο', rose: 'Ροζ' };
+const appearanceModes = { system: 'Αυτόματο', light: 'Φωτεινό', dark: 'Σκούρο' };
+
+function loadAppearance() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(appearanceKey));
+        if (Object.hasOwn(palettes, saved?.palette) && Object.hasOwn(appearanceModes, saved?.mode)) return saved;
+    } catch {}
+    return { palette: 'violet', mode: 'system' };
+}
+
+function applyAppearance(appearance) {
+    const root = document.documentElement;
+    root.dataset.palette = appearance.palette;
+    root.dataset.appearance = appearance.mode;
+    const background = getComputedStyle(root).getPropertyValue('--bg').trim();
+    document.querySelector('meta[name="theme-color"]').content = background;
+}
+
+function appearanceEditor() {
+    const current = loadAppearance();
+    const options = (values, selected) => Object.entries(values).map(([value, label]) =>
+        '<option value="' + value + '"' + (selected === value ? ' selected' : '') + '>' + label + '</option>'
+    ).join('');
+    openEditor('Εμφάνιση', '<form id="appearance-form">' +
+        '<label>Χρώμα<select name="palette">' + options(palettes, current.palette) + '</select></label>' +
+        '<label>Θέμα<select name="mode">' + options(appearanceModes, current.mode) + '</select></label>' +
+        '<p class="muted" role="status"></p></form>');
+    const form = editor.querySelector('form');
+    form.onchange = () => {
+        const fields = new FormData(form);
+        const next = { palette: fields.get('palette'), mode: fields.get('mode') };
+        applyAppearance(next);
+        try {
+            localStorage.setItem(appearanceKey, JSON.stringify(next));
+            form.querySelector('[role="status"]').textContent = 'Η εμφάνιση αποθηκεύτηκε.';
+        } catch {
+            form.querySelector('[role="status"]').textContent = 'Η εμφάνιση άλλαξε προσωρινά. Δεν αποθηκεύτηκε.';
+        }
+    };
+}
+
+document.querySelector('#appearance').onclick = appearanceEditor;
+applyAppearance(loadAppearance());
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => applyAppearance(loadAppearance()));
 
 document.querySelector('#backup').onclick = backupEditor;
 document.querySelector('#close-editor').onclick = () => dialog.close();
