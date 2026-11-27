@@ -28,8 +28,16 @@
 #clear-note-photo{display:block;margin-top:8px}button:disabled{opacity:.65;cursor:wait}
 [data-tab=appointments]{position:relative}
 .tabbar #appointment-count{position:absolute;top:2px;left:calc(50% + 9px);min-width:20px;padding:0 4px;border:1px solid var(--panel);border-radius:12px;background:var(--accent);color:var(--accent-ink);font-size:.7rem;line-height:17px;font-weight:750;text-align:center}
+
+.shopping-group h3{margin:14px 0 2px;font-size:1rem;color:var(--muted)}
+.note-tags{margin:6px 0}.note-tag{padding:3px 10px;border:1px solid var(--border);border-radius:12px;color:var(--accent);font-size:.88rem}
+.scan-stage{position:relative;width:fit-content;max-width:100%;margin:18px auto}
+.scan-stage canvas{display:block;max-width:100%;max-height:52dvh;width:auto;height:auto;border-radius:9px}
+.scan-corner{position:absolute;display:grid;place-items:center;transform:translate(-50%,-50%);width:44px;height:44px;min-height:44px;padding:0;background:transparent;border:0;touch-action:none;z-index:1}
+.scan-corner::after{content:"";width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px #241644}
 </style>
-<script defer src="app.js?v=6"></script>
+<script defer src="scan.js?v=7"></script>
+<script defer src="app.js?v=7"></script>
 </head>
 <body>
 <header><strong>Σημειωματάριο · Marmon 251</strong><div class="header-actions"><button id="appearance" type="button">Χρώματα</button><button id="backup" type="button" aria-label="Αντίγραφα ασφαλείας">Αντίγραφα</button></div></header>
