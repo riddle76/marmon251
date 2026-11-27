@@ -1,0 +1,12 @@
+{
+  "name": "Κοινά Ψώνια · Marmon",
+  "short_name": "Κοινά Ψώνια",
+  "lang": "el",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#11231c",
+  "theme_color": "#11231c",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]
+}

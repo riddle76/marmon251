@@ -1,0 +1,12 @@
+name = "marmon-shared-shopping"
+main = "worker.mjs"
+compatibility_date = "2026-11-27"
+
+[vars]
+APP_ORIGIN = "https://riddle76.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "marmon-shared-shopping"
+database_id = "INSERT_D1_DATABASE_ID"
+migrations_dir = "migrations"
