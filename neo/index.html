@@ -32,9 +32,14 @@
 .scan-corner{position:absolute;display:grid;place-items:center;transform:translate(-50%,-50%);width:44px;height:44px;min-height:44px;padding:0;background:transparent;border:0;touch-action:none;z-index:1}
 .scan-corner::after{content:"";width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px #172736}
 .note-capture-actions{margin:2px 0 12px}.note-capture-actions button{overflow-wrap:anywhere}
+
+.shopping-product-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
+.shopping-photo-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:.83rem;padding-inline:8px}
+.shopping-photo-button img{width:30px;height:34px;object-fit:cover;border-radius:5px}
+.appointment-photo{display:block;margin:8px 0 12px;max-height:260px;object-fit:contain}
 </style>
 <script defer src="scan.js?v=7"></script>
-<script defer src="app.js?v=8"></script>
+<script defer src="app.js?v=9"></script>
 </head>
 <body>
 <header><strong>Σημειωματάριο · Marmon 251</strong><div class="header-actions"><button id="appearance" type="button">Χρώματα</button><button id="backup" type="button" aria-label="Αντίγραφα ασφαλείας">Αντίγραφα</button></div></header>
