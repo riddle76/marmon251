@@ -26,8 +26,10 @@
 .visually-hidden{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;clip-path:inset(50%);overflow:hidden}
 .visually-hidden:focus-visible + .photo-action{outline:2px solid var(--accent);outline-offset:2px}
 #clear-note-photo{display:block;margin-top:8px}button:disabled{opacity:.65;cursor:wait}
+[data-tab=appointments]{position:relative}
+.tabbar #appointment-count{position:absolute;top:2px;left:calc(50% + 9px);min-width:20px;padding:0 4px;border:1px solid var(--panel);border-radius:12px;background:var(--accent);color:var(--accent-ink);font-size:.7rem;line-height:17px;font-weight:750;text-align:center}
 </style>
-<script defer src="app.js?v=5"></script>
+<script defer src="app.js?v=6"></script>
 </head>
 <body>
 <header><strong>Σημειωματάριο · Marmon 251</strong><div class="header-actions"><button id="appearance" type="button">Χρώματα</button><button id="backup" type="button" aria-label="Αντίγραφα ασφαλείας">Αντίγραφα</button></div></header>
@@ -35,7 +37,7 @@
 <nav class="tabbar" aria-label="Καρτέλες"><div>
 <button data-tab="today" type="button"><span aria-hidden="true">◷</span>Σήμερα</button>
 <button data-tab="leave" type="button"><span aria-hidden="true">▦</span>Άδειες</button>
-<button data-tab="appointments" type="button"><span aria-hidden="true">◈</span>Ραντεβού</button>
+<button data-tab="appointments" type="button"><span aria-hidden="true">◈</span>Ραντεβού<span id="appointment-count" aria-hidden="true" hidden></span></button>
 <button data-tab="shop" type="button"><span aria-hidden="true">✓</span>Ψώνια</button>
 <button data-tab="notes" type="button"><span aria-hidden="true">≡</span>Σημειώσεις</button>
 </div></nav>
