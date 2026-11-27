@@ -154,9 +154,54 @@ function prettyDate(value) {
     return new Intl.DateTimeFormat('el-GR', options).format(date);
 }
 
+const shoppingProducts = new Set(
+    ('γαλα πατατα πατατες ψωμι αυγο αυγα αβγο αβγα γιαουρτι γιαουρτια τυρι τυρια φετα βουτυρο ' +
+    'τυροσαλατα κασερι γραβιερα γαλοπουλα ζαμπον μπεικον παριζα κοτοπουλο κιμας κρεας μπριζολες ' +
+    'ψαρι ψαρια τονος σαρδελες ρυζι μακαρονια ζυμαρικα σπαγγετι αλευρι ζαχαρη αλατι πιπερι ' +
+    'καφες τσαι κακαο σοκολατα μπισκοτα φρυγανιες δημητριακα βρωμη μελι μαρμελαδα ' +
+    'μηλο μηλα μπανανα μπανανες πορτοκαλι πορτοκαλια λεμονι λεμονια αχλαδι αχλαδια φραουλες σταφυλια ' +
+    'ντοματα ντοματες ντοματακια αγγουρι αγγουρια κρεμμυδι κρεμμυδια σκορδο καροτο καροτα ' +
+    'μαρουλι λαχανο μπροκολο κολοκυθια μελιτζανες πιπεριες μανιταρια σπανακι ' +
+    'φακες ρεβιθια φασολια αρακας ελιες λαδι ελαιολαδο ξυδι νερο χυμος αναψυκτικα μπυρα κρασι ' +
+    'χαρτι σαπουνι σαμπουαν οδοντοκρεμα απορρυπαντικο χλωρινη σακουλες τοστ κρεμα').split(' ').map(normalizeShoppingWord)
+);
+const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι']);
+const shoppingQualifiers = new Set(['με', 'χωρις', 'για', 'σε', 'απο']);
+const shoppingArticles = new Set(['το', 'τη', 'την', 'τα', 'τον']);
+const shoppingUnits = new Set(['κιλο', 'κιλα', 'γραμ', 'γραμμαρια', 'λιτρο', 'λιτρα', 'τεμαχιο', 'τεμαχια']);
+
+function normalizeShoppingWord(word) {
+    return word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
+}
+
+function splitRecognizedProducts(text) {
+    const words = text.split(/\s+/);
+    const normalized = words.map(normalizeShoppingWord);
+    const parts = [];
+    let start = 0;
+    let foundProduct = false;
+    for (let i = 0; i < words.length; i++) {
+        if (!shoppingProducts.has(normalized[i])) continue;
+        const previous = normalized[i - 1];
+        const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
+        const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
+        if (compound || shoppingQualifiers.has(qualifier)) continue;
+        if (foundProduct) {
+            let split = i;
+            if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
+            if (/^\d+(?:[,.]\d+)?$/.test(normalized[split - 1])) split--;
+            const end = normalized[split - 1] === 'και' ? split - 1 : split;
+            parts.push(words.slice(start, end).join(' '));
+            start = split;
+        }
+        foundProduct = true;
+    }
+    return [...parts, words.slice(start).join(' ')];
+}
+
 function splitShopping(text) {
     return text.split(/[\n;!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
-        .map(item => item.trim().replace(/[.!?]+$/, '').trim()).filter(Boolean);
+        .map(item => item.trim()).filter(Boolean).flatMap(splitRecognizedProducts);
 }
 
 function button(action, title, extra = '') {
@@ -170,11 +215,12 @@ function renderShopping() {
         '</span>' + safe(item.text), 'class="item' + (checked ? ' strike' : '') + '" data-id="' + safe(item.id) + '"');
     return '<form class="card" id="shopping-form">' +
         '<label for="shopping-input"><strong>Τι χρειάζεσαι;</strong></label>' +
-        '<textarea id="shopping-input" name="items" placeholder="Γάλα, ψωμί, 6 αυγά" required></textarea>' +
-        '<p class="muted">Πάτησε το μικρόφωνο του πληκτρολογίου και χώρισε τα προϊόντα με κόμμα ή με τη λέξη «επόμενο».</p>' +
+        '<textarea id="shopping-input" name="items" placeholder="Γάλα πατάτες 6 αυγά" required></textarea>' +
+        '<p class="muted">Γράψε ή πες «γάλα πατάτες 6 αυγά». Για προϊόντα που χρειάζονται σαφή διαχωρισμό, βάλε κόμμα ή πες «επόμενο».</p>' +
         '<button class="primary wide">Προσθήκη στη λίστα</button></form>' +
-        '<h2>Στο καλάθι απομένουν ' + pending.length + '</h2>' +
-        (pending.map(item => row(item, false)).join('') || '<p class="muted">Η λίστα σου είναι άδεια.</p>') +
+        '<h2>Στη λίστα απομένουν ' + pending.length + '</h2>' +
+        (pending.map(item => row(item, false) + (splitShopping(item.text).length > 1 ?
+            button('split-item', 'Διαχωρισμός προϊόντων', 'data-id="' + safe(item.id) + '" aria-label="Διαχωρισμός προϊόντων για ' + safe(item.text) + '"') : '')).join('') || '<p class="muted">Η λίστα σου είναι άδεια.</p>') +
         (lastChecked ? button('undo', 'Αναίρεση τελευταίου') : '') +
         (completed.length ? '<div class="card">' + button('completed', (showChecked ? 'Απόκρυψη' : 'Εμφάνιση') +
             ' τσεκαρισμένων (' + completed.length + ')', 'aria-expanded="' + showChecked + '"') +
@@ -432,6 +478,13 @@ document.addEventListener('click', event => {
             lastChecked = wasChecked ? null : item.id;
             render();
         }
+    } else if (action === 'split-item') {
+        const index = data.shopping.findIndex(item => item.id === id && !item.done);
+        if (index === -1) return;
+        const items = splitShopping(data.shopping[index].text);
+        if (items.length > 1) changeData(next => {
+            next.shopping.splice(index, 1, ...items.map(text => ({ id: crypto.randomUUID(), text, done: false })));
+        });
     } else if (action === 'completed') {
         showChecked = !showChecked;
         render();
