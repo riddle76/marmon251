@@ -22,13 +22,13 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 @media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
 .brand{display:flex;align-items:center;gap:7px;color:var(--action);font-size:1rem;font-weight:750;letter-spacing:.025em;line-height:1.2}.brand img{display:block;flex:none}
 </style>
-<script defer src="app.js?v=7"></script>
+<script defer src="app.js?v=8"></script>
 </head>
 <body>
 <header><div><div class="brand"><img src="icon.svg" alt="" width="24" height="24"><span>Marmon251</span></div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
 <main>
-<form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
-<p class="muted">Γράψε «πατάτες γάλα» για ξεχωριστά προϊόντα. Πάτησε ένα προϊόν στη λίστα για να διαγραφεί.</p>
+<form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" aria-describedby="entry-help" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
+<p id="entry-help" class="muted">Για υπαγόρευση, πάτησε το μικρόφωνο στο ελληνικό πληκτρολόγιο. Πες «γάλα, κόμμα, τετράδια» και πάτησε «Προσθήκη στη λίστα».</p>
 <button class="primary wide">Προσθήκη στη λίστα</button></form>
 <details class="card favorites-card" open><summary><strong>Τα συχνά μου</strong></summary>
 <p id="favorite-empty" class="muted">Πάτησε το ☆ δίπλα σε ένα προϊόν για να το κρατήσεις εδώ.</p>
