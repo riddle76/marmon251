@@ -1,0 +1,429 @@
+const shoppingWords = new Map(
+    ('γάλα πατάτα πατάτες ψωμί αυγό αυγά αβγό αβγά γιαούρτι γιαούρτια τυρί τυριά φέτα βούτυρο ' +
+    'τυροσαλάτα κασέρι γραβιέρα γαλοπούλα ζαμπόν μπέικον πάριζα κοτόπουλο κιμάς κρέας μπριζόλες ' +
+    'ψάρι ψάρια τόνος σαρδέλες ρύζι μακαρόνια ζυμαρικά σπαγγέτι αλεύρι ζάχαρη αλάτι πιπέρι ' +
+    'καφές τσάι κακάο σοκολάτα μπισκότα φρυγανιές δημητριακά βρώμη μέλι μαρμελάδα ' +
+    'μήλο μήλα μπανάνα μπανάνες πορτοκάλι πορτοκάλια λεμόνι λεμόνια αχλάδι αχλάδια φράουλες σταφύλια ' +
+    'ντομάτα ντομάτες ντοματάκια αγγούρι αγγούρια κρεμμύδι κρεμμύδια σκόρδο καρότο καρότα ' +
+    'μαρούλι λάχανο μπρόκολο κολοκύθια μελιτζάνες πιπεριές μανιτάρια σπανάκι ' +
+    'φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι νερό χυμός αναψυκτικά μπύρα κρασί ' +
+    'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες τοστ κρέμα').split(' ')
+        .map(word => [normalizeShoppingWord(word), word])
+);
+for (const [misspelling, correction] of Object.entries({
+    παταταις: 'πατάτες', γαλλα: 'γάλα', ντοματαις: 'ντομάτες', γιαουρτη: 'γιαούρτι', ψομι: 'ψωμί'
+})) shoppingWords.set(normalizeShoppingWord(misspelling), correction);
+
+const shoppingCompounds = new Set(['τυρι κρεμα', 'ψωμι τοστ', 'γαλα κακαο', 'ζαχαρη αχνη', 'χυμος πορτοκαλι']);
+const shoppingQualifiers = new Set(['με', 'χωρις', 'για', 'σε', 'απο']);
+const shoppingArticles = new Set(['το', 'τη', 'την', 'τα', 'τον']);
+const shoppingUnits = new Set(['κιλο', 'κιλα', 'γραμ', 'γραμμαρια', 'λιτρο', 'λιτρα', 'τεμαχιο', 'τεμαχια']);
+
+function normalizeShoppingWord(word) {
+    return word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
+}
+
+function correctShoppingSpelling(text) {
+    return text.replace(/[\p{Script=Greek}\p{M}]+/gu, word => {
+        const correct = shoppingWords.get(normalizeShoppingWord(word));
+        if (!correct) return word;
+        if (word === word.toLocaleUpperCase('el')) return correct.toLocaleUpperCase('el');
+        if (word[0] === word[0].toLocaleUpperCase('el')) return correct[0].toLocaleUpperCase('el') + correct.slice(1);
+        return correct;
+    });
+}
+
+function splitRecognizedProducts(text) {
+    const words = text.split(/\s+/);
+    const normalized = words.map(normalizeShoppingWord);
+    const parts = [];
+    let start = 0;
+    let foundProduct = false;
+    for (let i = 0; i < words.length; i++) {
+        if (!shoppingWords.has(normalized[i])) continue;
+        const previous = normalized[i - 1];
+        const compound = shoppingCompounds.has(previous + ' ' + normalized[i]);
+        const qualifier = shoppingArticles.has(previous) ? normalized[i - 2] : previous;
+        if (compound || shoppingQualifiers.has(qualifier)) continue;
+        if (foundProduct) {
+            let split = i;
+            if (shoppingUnits.has(normalized[split - 1]) && /^\d+(?:[,.]\d+)?$/.test(normalized[split - 2])) split--;
+            if (/^\d+(?:[,.]\d+)?$/.test(normalized[split - 1])) split--;
+            const end = normalized[split - 1] === 'και' ? split - 1 : split;
+            parts.push(words.slice(start, end).join(' '));
+            start = split;
+        }
+        foundProduct = true;
+    }
+    return [...parts, words.slice(start).join(' ')];
+}
+
+function splitShopping(text) {
+    return text.split(/[\n;!?•]+|(?<!\d)[,.]|[,.](?!\d)|\s+(?:κόμμα|επόμενο)\s+/iu)
+        .map(item => item.trim()).filter(Boolean).flatMap(splitRecognizedProducts).map(correctShoppingSpelling);
+}
+
+const shoppingCategories = new Map(Object.entries({
+    'Φρούτα και λαχανικά': 'πατάτα πατάτες μήλο μήλα μπανάνα μπανάνες πορτοκάλι πορτοκάλια λεμόνι λεμόνια αχλάδι αχλάδια φράουλες σταφύλια ντομάτα ντομάτες ντοματάκια αγγούρι αγγούρια κρεμμύδι κρεμμύδια σκόρδο καρότο καρότα μαρούλι λάχανο μπρόκολο κολοκύθια μελιτζάνες πιπεριές μανιτάρια σπανάκι',
+    'Γαλακτοκομικά και αυγά': 'γάλα αυγό αυγά αβγό αβγά γιαούρτι γιαούρτια τυρί τυριά φέτα βούτυρο κρέμα τυροσαλάτα κασέρι γραβιέρα',
+    'Αρτοποιείο': 'ψωμί τοστ φρυγανιές',
+    'Κρέας, ψάρια και αλλαντικά': 'γαλοπούλα ζαμπόν μπέικον πάριζα κοτόπουλο κιμάς κρέας μπριζόλες ψάρι ψάρια τόνος σαρδέλες',
+    'Τρόφιμα ντουλαπιού': 'ρύζι μακαρόνια ζυμαρικά σπαγγέτι αλεύρι ζάχαρη αλάτι πιπέρι καφές τσάι κακάο σοκολάτα μπισκότα δημητριακά βρώμη μέλι μαρμελάδα φακές ρεβίθια φασόλια αρακάς ελιές λάδι ελαιόλαδο ξύδι',
+    'Ποτά': 'νερό χυμός αναψυκτικά μπύρα κρασί',
+    'Σπίτι και φροντίδα': 'χαρτί σαπούνι σαμπουάν οδοντόκρεμα απορρυπαντικό χλωρίνη σακούλες'
+}).map(([category, products]) => [category, new Set(products.split(' ').map(normalizeShoppingWord))]));
+
+function shoppingCategory(text) {
+    for (const word of correctShoppingSpelling(text).split(/\s+/)) {
+        const name = normalizeShoppingWord(word).replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+        for (const [category, products] of shoppingCategories) {
+            if (products.has(name)) return category;
+        }
+    }
+    return 'Λοιπά';
+}
+
+const $ = selector => document.querySelector(selector);
+const storageKey = 'marmon-psonia-v1';
+const device = loadDevice();
+let products = device.local;
+let revision = null;
+let role = device.connection?.role;
+let error = '';
+let refreshing = false;
+let busy = false;
+let pendingInvite = null;
+let editPhotoId = null;
+let selectedPhoto = '';
+
+function loadDevice() {
+    try {
+        const value = JSON.parse(localStorage.getItem(storageKey));
+        if (Array.isArray(value?.local)) return value;
+    } catch {}
+    return { local: [], connection: null };
+}
+
+function saveDevice(next) {
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    Object.assign(device, next);
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+function validPhoto(value) {
+    return typeof value === 'string' && /^data:image\/jpeg;base64,\/9j\/[a-z\d+/]+=*$/i.test(value);
+}
+
+function validEndpoint(value) {
+    const url = new URL(value);
+    const local = ['localhost','127.0.0.1'].includes(url.hostname);
+    if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) {
+        throw new Error('Χρειάζεται έγκυρη διεύθυνση HTTPS.');
+    }
+    return url.href.replace(/\/$/, '');
+}
+
+async function api(path, options = {}) {
+    const { method = 'GET', body, endpoint = device.connection?.endpoint, token = device.connection?.token } = options;
+    const headers = {};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    if (body) headers['Content-Type'] = 'application/json';
+    const result = await fetch(endpoint + path, {
+        method, headers, body: body ? JSON.stringify(body) : undefined,
+        cache: 'no-store', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(12000)
+    });
+    const data = await result.json();
+    if (!result.ok) {
+        const failure = new Error(data.error || 'Η κοινή λίστα δεν είναι διαθέσιμη.');
+        failure.status = result.status;
+        throw failure;
+    }
+    return data;
+}
+
+function productRow(item) {
+    const image = validPhoto(item.photo) ? '<img src="' + item.photo + '" alt="" loading="lazy">' : 'Φωτογραφία';
+    const name = escapeHtml(correctShoppingSpelling(item.title));
+    const id = escapeHtml(item.id);
+    return '<li><button data-remove="' + id + '" class="product" aria-label="Διαγραφή: ' + name + '">' +
+        '<span aria-hidden="true" class="check">✓</span><strong>' + name + '</strong></button>' +
+        '<button class="photo-button" data-photo="' + id + '" aria-label="Φωτογραφία: ' + name + '">' + image + '</button></li>';
+}
+
+function render() {
+    $('#mode').textContent = device.connection ? 'Κοινή λίστα' : 'Λίστα σε αυτή τη συσκευή';
+    $('#warning').textContent = error;
+    $('#summary').textContent = products.length === 1 ? '1 προϊόν' : products.length + ' προϊόντα';
+    const groups = new Map([...shoppingCategories.keys(), 'Λοιπά'].map(name => [name, []]));
+    for (const item of products) groups.get(shoppingCategory(item.title)).push(item);
+    $('#products').innerHTML = [...groups].filter(([, list]) => list.length)
+        .map(([name, list]) => '<section><h2>' + name + '</h2><ul>' + list.map(productRow).join('') + '</ul></section>').join('');
+    $('#empty').hidden = products.length !== 0;
+    $('#invite-open').textContent = role === 'owner' ? 'Πρόσκληση' : 'Κοινή χρήση';
+}
+
+async function refresh(force = false) {
+    const connection = device.connection;
+    if (!connection || (refreshing && !force)) return;
+    if (refreshing) {
+        await refreshing;
+        if (device.connection !== connection) return;
+    }
+    const previous = revision;
+    const work = async () => {
+        try {
+            const snapshot = await api('/list' + (force || previous === null ? '' : '?revision=' + previous));
+            if (device.connection !== connection) return;
+            if (!snapshot.unchanged && (revision === null || snapshot.revision >= revision)) products = snapshot.items;
+            revision = snapshot.revision;
+            role = snapshot.role;
+            error = '';
+            render();
+        } catch (failure) {
+            if (device.connection !== connection) return;
+            error = failure.status === 401 ? 'Η πρόσβαση έληξε ή αφαιρέθηκε.' : 'Δεν έγινε συγχρονισμός. Η εφαρμογή θα δοκιμάσει ξανά.';
+            if (failure.status === 401) {
+                products = [];
+                revision = null;
+            }
+            render();
+        }
+    };
+    const ongoing = work();
+    refreshing = ongoing;
+    await ongoing;
+    if (refreshing === ongoing) refreshing = false;
+}
+
+async function changeItems(path, method, body, localChange) {
+    if (busy) return false;
+    busy = true;
+    try {
+        if (device.connection) {
+            const result = await api(path, { method, body });
+            await refresh(true);
+            if (result.requested && result.added < result.requested) {
+                error = 'Η κοινή λίστα δέχεται έως 100 προϊόντα. Προστέθηκαν ' + result.added + '.';
+            }
+        } else {
+            const list = localChange(device.local);
+            saveDevice({ ...device, local: list });
+            products = device.local;
+            error = '';
+        }
+        render();
+        return true;
+    } catch (failure) {
+        error = failure.name === 'TypeError' || failure.name === 'TimeoutError' ?
+            'Δεν υπάρχει σύνδεση. Δοκίμασε ξανά.' : failure.message;
+        render();
+        return false;
+    } finally { busy = false; }
+}
+
+async function connect(endpoint, path, body) {
+    const session = await api(path, { endpoint, token: null, method: 'POST', body });
+    saveDevice({ ...device, connection: { endpoint, token: session.token, role: session.role } });
+    products = [];
+    revision = null;
+    role = session.role;
+    await refresh(true);
+}
+
+function showShare() {
+    const owner = device.connection && role === 'owner';
+    $('#connect').hidden = Boolean(device.connection) || Boolean(pendingInvite);
+    $('#accept-invite').hidden = !pendingInvite || Boolean(device.connection);
+    $('#owner-actions').hidden = !owner;
+    $('#connected').hidden = !device.connection;
+    $('#invite-output').hidden = true;
+    $('#share-status').textContent = device.connection ? 'Αυτή η συσκευή είναι συνδεδεμένη στην κοινή λίστα.' :
+        pendingInvite ? 'Έχεις λάβει πρόσκληση για την κοινή λίστα.' : 'Για κοινή λίστα χρειάζεται ενεργός διακομιστής συγχρονισμού.';
+    $('#share').showModal();
+}
+
+function readInvite() {
+    try {
+        const params = new URLSearchParams(location.hash.slice(1));
+        const invite = params.get('invite');
+        if (!invite || !/^[a-f0-9]{64}$/.test(invite)) return;
+        pendingInvite = { invite, endpoint: validEndpoint(params.get('server')) };
+        history.replaceState(null, '', location.pathname + location.search);
+        showShare();
+    } catch {
+        error = 'Η πρόσκληση δεν είναι έγκυρη.';
+    }
+}
+
+$('#add').onsubmit = async event => {
+    event.preventDefault();
+    const field = $('#entry');
+    const titles = splitShopping(field.value).filter(title => title.length <= 140);
+    if (!titles.length) return;
+    if (titles.length > 30) {
+        error = 'Πρόσθεσε έως 30 προϊόντα τη φορά.';
+        render();
+        return;
+    }
+    const items = titles.map(title => ({ id: crypto.randomUUID(), title, photo: '' }));
+    if (await changeItems('/items', 'POST', { items }, previous => [...previous, ...items])) field.value = '';
+};
+
+$('#products').onclick = event => {
+    const target = event.target.closest('button');
+    if (!target) return;
+    if (target.dataset.remove) {
+        const id = target.dataset.remove;
+        void changeItems('/items/' + encodeURIComponent(id), 'DELETE', null, previous => previous.filter(item => item.id !== id));
+    }
+    if (target.dataset.photo) {
+        const item = products.find(entry => entry.id === target.dataset.photo);
+        if (!item) return;
+        editPhotoId = item.id;
+        selectedPhoto = validPhoto(item.photo) ? item.photo : '';
+        $('#photo-title').textContent = item.title;
+        $('#photo-status').textContent = '';
+        previewPhoto();
+        $('#photo').showModal();
+    }
+};
+
+function previewPhoto() {
+    const img = $('#photo-preview');
+    img.hidden = !selectedPhoto;
+    if (selectedPhoto) img.src = selectedPhoto;
+    else img.removeAttribute('src');
+    $('#photo-clear').hidden = !selectedPhoto;
+}
+
+async function photoFile(file) {
+    const src = URL.createObjectURL(file);
+    try {
+        const image = new Image();
+        image.src = src;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(1, 500 / Math.max(image.width, image.height));
+        canvas.width = Math.max(1, Math.round(image.width * ratio));
+        canvas.height = Math.max(1, Math.round(image.height * ratio));
+        const context = canvas.getContext('2d', { alpha: false });
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const photo = canvas.toDataURL('image/jpeg', .67);
+        if (!validPhoto(photo) || photo.length > 95_000) throw new Error('Η φωτογραφία είναι πολύ μεγάλη.');
+        return photo;
+    } finally { URL.revokeObjectURL(src); }
+}
+
+let photoGeneration = 0;
+$('#photo').addEventListener('close', () => { ++photoGeneration; $('#photo-save').disabled = false; });
+for (const picker of [$('#camera'), $('#library')]) picker.onchange = async () => {
+    const file = picker.files[0];
+    if (!file) return;
+    picker.value = '';
+    const generation = ++photoGeneration;
+    $('#photo-save').disabled = true;
+    try {
+        const image = await photoFile(file);
+        if (generation !== photoGeneration) return;
+        selectedPhoto = image;
+        $('#photo-status').textContent = '';
+        previewPhoto();
+    } catch {
+        if (generation === photoGeneration) $('#photo-status').textContent = 'Η φωτογραφία δεν άνοιξε ή ήταν πολύ μεγάλη.';
+    } finally {
+        if (generation === photoGeneration) $('#photo-save').disabled = false;
+    }
+};
+$('#photo-clear').onclick = () => {
+    ++photoGeneration;
+    selectedPhoto = '';
+    $('#photo-save').disabled = false;
+    previewPhoto();
+};
+$('#photo-save').onclick = async () => {
+    const id = editPhotoId, photo = selectedPhoto;
+    if (await changeItems('/items/' + encodeURIComponent(id), 'PUT', { photo },
+        previous => previous.map(item => item.id === id ? { ...item, photo } : item))) $('#photo').close();
+    else $('#photo-status').textContent = error;
+};
+
+$('#invite-open').onclick = showShare;
+$('#connect').onsubmit = async event => {
+    event.preventDefault();
+    const submit = event.currentTarget.querySelector('button');
+    submit.disabled = true;
+    const fields = new FormData(event.currentTarget);
+    try {
+        const endpoint = validEndpoint(fields.get('endpoint'));
+        await connect(endpoint, '/lists', { key: fields.get('key').trim() });
+        $('#connect').reset();
+        $('#share').close();
+    } catch (failure) { $('#share-status').textContent = failure.message; }
+    finally { submit.disabled = false; }
+};
+$('#accept-invite').onclick = async () => {
+    if (!pendingInvite) return;
+    $('#accept-invite').disabled = true;
+    try {
+        await connect(pendingInvite.endpoint, '/join', { invite: pendingInvite.invite });
+        pendingInvite = null;
+        $('#share').close();
+    } catch (failure) { $('#share-status').textContent = failure.message; }
+    finally { $('#accept-invite').disabled = false; }
+};
+$('#generate-invite').onclick = async () => {
+    $('#generate-invite').disabled = true;
+    try {
+        const { invite } = await api('/invites', { method: 'POST' });
+        $('#invite-link').value = location.origin + location.pathname + '#' +
+            new URLSearchParams({ server: device.connection.endpoint, invite });
+        $('#invite-output').hidden = false;
+        $('#share-status').textContent = 'Η πρόσκληση χρησιμοποιείται μία φορά και ισχύει για 24 ώρες.';
+    } catch (failure) { $('#share-status').textContent = failure.message; }
+    finally { $('#generate-invite').disabled = false; }
+};
+$('#copy-invite').onclick = async () => {
+    try { await navigator.clipboard.writeText($('#invite-link').value); $('#share-status').textContent = 'Αντιγράφηκε ο σύνδεσμος.'; }
+    catch { $('#invite-link').select(); }
+};
+$('#disconnect').onclick = () => {
+    if (role === 'owner' && !confirm('Η αποσύνδεση αφαιρεί το δικαίωμα διαχείρισης από αυτή τη συσκευή. Συνέχεια;')) return;
+    saveDevice({ ...device, connection: null });
+    products = device.local;
+    role = null;
+    revision = null;
+    error = '';
+    render();
+    if (pendingInvite) {
+        $('#accept-invite').hidden = false;
+        $('#connect').hidden = true;
+        $('#connected').hidden = true;
+        $('#owner-actions').hidden = true;
+        $('#share-status').textContent = 'Πάτησε Αποδοχή πρόσκλησης για να ανοίξεις τη νέα λίστα.';
+    } else $('#share').close();
+};
+$('#revoke').onclick = async () => {
+    if (!confirm('Να αφαιρεθεί η πρόσβαση από τις προσκεκλημένες συσκευές;')) return;
+    try {
+        await api('/members', { method: 'DELETE' });
+        $('#invite-output').hidden = true;
+        $('#share-status').textContent = 'Η πρόσβαση αφαιρέθηκε. Μπορείς να δημιουργήσεις νέα πρόσκληση.';
+    } catch (failure) { $('#share-status').textContent = failure.message; }
+};
+for (const dialog of document.querySelectorAll('dialog')) {
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+}
+
+render();
+readInvite();
+render();
+void refresh();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
+window.addEventListener('online', () => void refresh());
+setInterval(() => { if (!document.hidden) void refresh(); }, 8000);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
