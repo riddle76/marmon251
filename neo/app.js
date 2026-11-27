@@ -317,11 +317,54 @@ function appointmentCard(item) {
         button('edit-appointment', 'Επεξεργασία', 'data-id="' + safe(item.id) + '"') + '</div></article>';
 }
 
+function upcomingAppointments(appointments, now = Date.now()) {
+    return appointments.filter(item => +new Date(item.datetime) >= now);
+}
+
+function updateAppointmentBadge() {
+    const count = upcomingAppointments(data.appointments).length;
+    const label = count === 1 ? '1 προσεχές ραντεβού' : count + ' προσεχή ραντεβού';
+    const badge = document.querySelector('#appointment-count');
+    badge.hidden = count === 0;
+    badge.textContent = count;
+    badge.parentElement.setAttribute('aria-label', count ? 'Ραντεβού, ' + label : 'Ραντεβού');
+
+    const summary = document.querySelector('#appointment-summary');
+    if (summary) summary.textContent = count ? label : 'Δεν έχεις προσεχή ραντεβού.';
+
+    if (typeof navigator.setAppBadge === 'function' && globalThis.Notification?.permission === 'granted') {
+        void navigator.setAppBadge(count).catch(() => {});
+    }
+}
+
+async function enableAppointmentBadge() {
+    const status = document.querySelector('#appointment-badge-status');
+    if (typeof navigator.setAppBadge !== 'function' || !globalThis.Notification?.requestPermission) {
+        status.textContent = 'Άνοιξε το Σημειωματάριο από το εικονίδιό του στην αρχική οθόνη του iPhone και πάτησε ξανά εδώ.';
+        return;
+    }
+    try {
+        const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
+        if (permission === 'granted') {
+            await navigator.setAppBadge(upcomingAppointments(data.appointments).length);
+            status.textContent = 'Ο αριθμός στο εικονίδιο ενημερώνεται κάθε φορά που ανοίγεις το Σημειωματάριο.';
+        } else if (permission === 'denied') {
+            status.textContent = 'Για να φαίνεται ο αριθμός, έλεγξε τις γνωστοποιήσεις και τα σήματα του Σημειωματαρίου στις Ρυθμίσεις του iPhone.';
+        } else {
+            status.textContent = 'Η άδεια εκκρεμεί. Μπορείς να δοκιμάσεις ξανά.';
+        }
+    } catch {
+        status.textContent = 'Το σήμα στο εικονίδιο δεν μπόρεσε να ενημερωθεί σε αυτή τη συσκευή.';
+    }
+}
+
 function renderAppointments() {
     const appointments = [...data.appointments].sort((a, b) => a.datetime.localeCompare(b.datetime));
-    return button('new-appointment', '+ Νέο ραντεβού', 'class="primary wide"') +
+    return '<p id="appointment-summary" class="muted"></p>' + button('new-appointment', '+ Νέο ραντεβού', 'class="primary wide"') +
         (appointments.map(appointmentCard).join('') || '<p class="muted">Δεν υπάρχουν ραντεβού.</p>') +
-        button('calendar-setup', 'Ρυθμίσεις Ημερολογίου Apple', 'class="wide"');
+        button('calendar-setup', 'Ρυθμίσεις Ημερολογίου Apple', 'class="wide"') +
+        button('enable-appointment-badge', 'Αριθμός στο εικονίδιο', 'class="wide"') +
+        '<p id="appointment-badge-status" class="muted" role="status"></p>';
 }
 
 function noteCards(query = '') {
@@ -334,7 +377,7 @@ function noteCards(query = '') {
 
 function renderToday() {
     const today = dateKey(new Date());
-    const next = data.appointments.filter(item => +new Date(item.datetime) >= Date.now())
+    const next = upcomingAppointments(data.appointments)
         .sort((a, b) => a.datetime.localeCompare(b.datetime))[0];
     const entitlement = data.entitlements[today.slice(0, 4)];
     const { used, planned } = summarizeLeave(data.leaves, today.slice(0, 4), today);
@@ -357,6 +400,7 @@ function render() {
             '<label for="note-search">Αναζήτηση</label><input id="note-search" type="search"><div id="note-cards">' +
             noteCards() + '</div>' };
     view.innerHTML = renderers[selectedTab]();
+    updateAppointmentBadge();
 }
 
 function openEditor(title, html) {
@@ -660,7 +704,8 @@ document.addEventListener('click', event => {
     } else if (action === 'calendar-file') {
         const item = data.appointments.find(item => item.id === id);
         if (item) exportAppointment(item);
-    } else if (action === 'calendar-setup') calendarSetup();
+    } else if (action === 'enable-appointment-badge') enableAppointmentBadge();
+    else if (action === 'calendar-setup') calendarSetup();
     else if (action === 'calendar-enable' || action === 'calendar-disable') {
         try {
             if (action === 'calendar-enable') localStorage.setItem(calendarShortcutKey, 'enabled');
@@ -677,6 +722,13 @@ document.addEventListener('click', event => {
         if (changeData(next => { next[collection] = next[collection].filter(item => item.id !== id); }) && dialog.open) dialog.close();
     }
 });
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') updateAppointmentBadge();
+});
+window.setInterval(() => {
+    if (document.visibilityState === 'visible') updateAppointmentBadge();
+}, 60000);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 render();
