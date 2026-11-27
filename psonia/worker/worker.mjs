@@ -1,4 +1,5 @@
 const MAX_ITEMS = 100;
+const MAX_FAVORITES = 50;
 const MAX_PHOTO = 95_000;
 const TOKEN = /^[a-f0-9]{64}$/;
 const ID = /^[a-f0-9-]{36}$/;
@@ -95,11 +96,12 @@ export default {
             if (path === '/list' && method === 'GET') {
                 const revision = await db.prepare('SELECT revision FROM lists WHERE id = ?').bind(list).first('revision');
                 if (searchParams.get('revision') === String(revision)) return reply({ unchanged: true, revision, role: session.role });
-                const [current, products] = await db.batch([
+                const [current, products, favorites] = await db.batch([
                     db.prepare('SELECT revision FROM lists WHERE id = ?').bind(list),
-                    db.prepare('SELECT id, title, photo FROM items WHERE list_id = ? ORDER BY added_at, id').bind(list)
+                    db.prepare('SELECT id, title, photo FROM items WHERE list_id = ? ORDER BY added_at, id').bind(list),
+                    db.prepare('SELECT id, title FROM favorites WHERE list_id = ? ORDER BY added_at, id').bind(list)
                 ]);
-                return reply({ revision: current.results[0].revision, items: products.results, role: session.role });
+                return reply({ revision: current.results[0].revision, items: products.results, favorites: favorites.results, role: session.role });
             }
             if (path === '/invites' && method === 'POST') {
                 if (session.role !== 'owner') return reply({ error: 'Μόνο ο δημιουργός μπορεί να προσκαλεί συσκευές.' }, 403);
@@ -116,6 +118,26 @@ export default {
                     db.prepare("DELETE FROM sessions WHERE list_id = ? AND role = 'member'").bind(list),
                     db.prepare('DELETE FROM invites WHERE list_id = ?').bind(list)
                 ]);
+                return reply({ ok: true });
+            }
+            if (path === '/favorites' && method === 'POST') {
+                const { id, title } = await readJson(request);
+                if (typeof id !== 'string' || !ID.test(id) || typeof title !== 'string' || !title.trim() || title.length > 140) {
+                    return reply({ error: 'Χρειάζεται έγκυρο όνομα προϊόντος.' }, 400);
+                }
+                const normalized = title.trim().replace(/\s+/g, ' ');
+                const key = normalized.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
+                const result = await db.prepare('INSERT OR IGNORE INTO favorites (list_id, id, title, product_key, added_at) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM favorites WHERE list_id = ?) < ?')
+                    .bind(list, id, normalized, key, Date.now(), list, MAX_FAVORITES).run();
+                if (!result.meta.changes) {
+                    const existing = await db.prepare('SELECT id FROM favorites WHERE list_id = ? AND product_key = ?').bind(list, key).first();
+                    if (!existing) return reply({ error: 'Μπορείς να αποθηκεύσεις έως 50 συχνά προϊόντα.' }, 409);
+                }
+                return reply({ ok: true }, 201);
+            }
+            const favorite = path.match(/^\/favorites\/([a-f0-9-]{36})$/)?.[1];
+            if (favorite && method === 'DELETE') {
+                await db.prepare('DELETE FROM favorites WHERE list_id = ? AND id = ?').bind(list, favorite).run();
                 return reply({ ok: true });
             }
             if (path === '/items' && method === 'POST') {
