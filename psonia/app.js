@@ -159,6 +159,34 @@ function shoppingCategory(text) {
 }
 
 const $ = selector => document.querySelector(selector);
+const themeHues = new Map([["green",146],["blue",216],["teal",178],["amber",42],["orange",24],["red",4],["rose",340],["purple",274],["slate",220]]);
+const themeKey = 'marmon-psonia-theme';
+const themePicker = $('#shopping-theme');
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyShoppingTheme(theme) {
+    const selected = themeHues.has(theme) ? theme : 'green';
+    const root = document.documentElement;
+    if (selected === 'green') delete root.dataset.shoppingTheme;
+    else root.dataset.shoppingTheme = selected;
+    root.style.setProperty('--theme-hue', themeHues.get(selected));
+    root.style.setProperty('--theme-saturation', selected === 'slate' ? '10%' : '42%');
+    const themeMeta = $('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.content = getComputedStyle(root).getPropertyValue('--bg').trim();
+    if (themePicker) themePicker.value = selected;
+}
+
+if (themePicker) {
+    let savedTheme;
+    try { savedTheme = localStorage.getItem(themeKey); } catch {}
+    applyShoppingTheme(savedTheme);
+    themePicker.addEventListener('change', () => {
+        applyShoppingTheme(themePicker.value);
+        try { localStorage.setItem(themeKey, themePicker.value); } catch {}
+    });
+    darkMode.addEventListener('change', () => applyShoppingTheme(themePicker.value));
+}
+
 const storageKey = 'marmon-psonia-v1';
 const device = loadDevice();
 let products = device.local;
