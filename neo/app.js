@@ -245,7 +245,8 @@ function renderShoppingGroups(items, row) {
     const groups = new Map([...shoppingCategories.keys(), 'Λοιπά'].map(category => [category, []]));
     for (const item of items) groups.get(shoppingCategory(item.text)).push(item);
     return [...groups].filter(([, group]) => group.length).map(([category, group]) =>
-        '<section class="shopping-group"><h3>' + category + '</h3>' + group.map(item => row(item) +
+        '<section class="shopping-group"><h3>' + category + '</h3>' + group.map(item =>
+            '<div class="shopping-product-row">' + row(item) + shoppingPhotoButton(item) + '</div>' +
             (splitShopping(item.text).length > 1 ? button('split-item', 'Διαχωρισμός προϊόντων',
                 'data-id="' + safe(item.id) + '" aria-label="Διαχωρισμός προϊόντων για ' + safe(item.text) + '"') : '')
         ).join('') + '</section>').join('');
@@ -336,7 +337,9 @@ function calendarControl(item) {
 
 function appointmentCard(item) {
     return '<article class="card"><strong>' + safe(item.title) + '</strong><p>' + prettyDate(item.datetime) +
-        '</p>' + (item.comments ? '<p class="note">' + safe(item.comments) + '</p>' : '') + '<div class="row">' +
+        '</p>' + (item.comments ? '<p class="note">' + safe(item.comments) + '</p>' : '') +
+        (validPhoto(item.photo) ? '<img class="appointment-photo" src="' + safe(item.photo) + '" alt="Φωτογραφία ραντεβού" loading="lazy">' : '') +
+        '<div class="row">' +
         calendarControl(item) +
         button('edit-appointment', 'Επεξεργασία', 'data-id="' + safe(item.id) + '"') + '</div></article>';
 }
@@ -480,28 +483,57 @@ function openEditor(title, html) {
     if (!dialog.open) dialog.showModal();
 }
 
-function editRecord(kind, item) {
-    const appointment = kind === 'appointments';
-    const title = appointment ? 'Ραντεβού' : 'Σημείωση';
-    const content = appointment ?
-        '<label>Ημερομηνία και ώρα<input type="datetime-local" name="datetime" required value="' + safe(item?.datetime) + '"></label>' :
-        '<fieldset class="note-photo"><legend>Φωτογραφία</legend><div class="row">' +
+function photoEditorMarkup() {
+    return '<fieldset class="note-photo"><legend>Φωτογραφία</legend><div class="row">' +
         '<input id="note-camera" type="file" accept="image/*" capture="environment" class="visually-hidden">' +
         '<label class="photo-action" for="note-camera">Λήψη φωτογραφίας</label>' +
         '<input id="note-library" type="file" accept="image/*" class="visually-hidden">' +
         '<label class="photo-action" for="note-library">Ανέβασμα αρχείου</label></div>' +
         '<p id="photo-status" class="muted" role="status"></p>' +
-        '<img id="photo-preview" hidden alt="Προεπισκόπηση φωτογραφίας σημείωσης">' +
+        '<img id="photo-preview" hidden alt="Προεπισκόπηση φωτογραφίας">' +
         '<button type="button" id="clear-note-photo" hidden>Αφαίρεση φωτογραφίας</button></fieldset>';
+}
+
+function editShoppingPhoto(id) {
+    const item = data.shopping.find(entry => entry.id === id && !entry.done);
+    if (!item) return;
+    openEditor(correctShoppingSpelling(item.text), '<form>' + photoEditorMarkup() +
+        '<button class="primary wide">Αποθήκευση φωτογραφίας</button></form>');
+    const form = editor.querySelector('form');
+    const photo = setupRecordPhoto(form, item.photo);
+    form.onsubmit = event => {
+        event.preventDefault();
+        if (photo.busy) return;
+        if (changeData(next => {
+            const entry = next.shopping.find(candidate => candidate.id === id);
+            if (entry) entry.photo = photo.value;
+        })) dialog.close();
+    };
+}
+
+function shoppingPhotoButton(item) {
+    const photo = validPhoto(item.photo);
+    const title = photo ? 'Φωτογραφία' : '+ Φωτογραφία';
+    const thumbnail = photo ? '<img src="' + safe(item.photo) + '" alt="" loading="lazy">' : '';
+    return button('shopping-photo', thumbnail + title, 'class="shopping-photo-button" data-id="' + safe(item.id) +
+        '" aria-label="' + (photo ? 'Προβολή φωτογραφίας: ' : 'Προσθήκη φωτογραφίας: ') +
+        safe(correctShoppingSpelling(item.text)) + '"');
+}
+
+function editRecord(kind, item) {
+    const appointment = kind === 'appointments';
+    const title = appointment ? 'Ραντεβού' : 'Σημείωση';
+    const dateFields = appointment ?
+        '<label>Ημερομηνία και ώρα<input type="datetime-local" name="datetime" required value="' + safe(item?.datetime) + '"></label>' : '';
     openEditor(title, '<form id="record-form"><label>Τίτλος<input name="title" ' + (appointment ? 'required ' : '') +
-        'value="' + safe(item?.title) + '"></label>' + content + '<label>Σημείωση<textarea name="text">' +
+        'value="' + safe(item?.title) + '"></label>' + dateFields + photoEditorMarkup() + '<label>Σημείωση<textarea name="text">' +
         safe(appointment ? item?.comments : item?.text) +
         '</textarea></label>' + (appointment ? '' : '<label>Ετικέτες<input name="tags" placeholder="Αυτοκίνητο, Σπίτι" value="' +
             safe(noteTags(item?.tags).join(', ')) + '"></label>' + scanEditorMarkup()) +
         '<button class="primary wide">Αποθήκευση</button></form>' +
         (item ? button('remove-record', 'Διαγραφή', 'data-id="' + safe(item.id) + '" data-kind="' + kind + '"') : ''));
     const form = editor.querySelector('form');
-    const photo = appointment ? null : setupNotePhoto(form, item?.photo);
+    const photo = setupRecordPhoto(form, item?.photo);
     const scan = appointment ? null : setupReceiptScan(form, item?.pdf);
     form.onsubmit = event => {
         event.preventDefault();
@@ -519,14 +551,14 @@ function editRecord(kind, item) {
             return;
         }
         const record = appointment ?
-            { id, title, datetime: fields.get('datetime'), comments: text } :
+            { id, title, datetime: fields.get('datetime'), comments: text, photo: photo.value } :
             { id, title: title || (scan.value ? 'Απόδειξη' : photo.value ? 'Φωτογραφία' : 'Σημείωση'), text, photo: photo.value,
                 pdf: scan.value, tags: noteTags(fields.get('tags')), pinned: Boolean(item?.pinned) };
         if (changeData(next => { next[kind] = [...next[kind].filter(entry => entry.id !== id), record]; })) dialog.close();
     };
 }
 
-function setupNotePhoto(form, savedPhoto) {
+function setupRecordPhoto(form, savedPhoto) {
     const photo = { value: validPhoto(savedPhoto) ? savedPhoto : '', busy: false };
     const preview = form.querySelector('#photo-preview');
     const clear = form.querySelector('#clear-note-photo');
@@ -554,7 +586,7 @@ function setupNotePhoto(form, savedPhoto) {
                 if (selected !== selection) return;
                 if (!validPhoto(converted)) throw new Error('Image conversion failed');
                 photo.value = converted;
-                status.textContent = 'Έτοιμη. Πάτησε Αποθήκευση για να μείνει στη σημείωση.';
+                status.textContent = 'Έτοιμη. Πάτησε Αποθήκευση για να κρατήσεις τη φωτογραφία.';
                 updatePreview();
             } catch {
                 if (selected === selection) status.textContent = 'Η εικόνα δεν άνοιξε. Δοκίμασε μια λήψη από την κάμερα ή μια εικόνα JPG/PNG.';
@@ -633,7 +665,7 @@ function legacyBackup(records) {
         if (item.category === 'leaves' && Array.isArray(item.leaveDates) && uniqueLeaveDates(item.leaveDates).length) {
             result.leaves.push({ id, title: item.title, category: 'leaves', leaveDates: uniqueLeaveDates(item.leaveDates) });
         } else if (item.category === 'doctors' && typeof item.datetime === 'string' && !Number.isNaN(+new Date(item.datetime))) {
-            result.appointments.push({ id, title: item.title, datetime: item.datetime, comments: item.comments || '' });
+            result.appointments.push({ id, title: item.title, datetime: item.datetime, comments: item.comments || '', photo: validPhoto(item.image) ? item.image : '' });
         } else {
             const subtasks = Array.isArray(item.subtasks) ? item.subtasks.filter(subtask => typeof subtask?.text === 'string') : [];
             if (item.category === 'shopping') subtasks.forEach(subtask => result.shopping.push({
@@ -765,12 +797,15 @@ document.addEventListener('click', event => {
         changeData(next => {
             next.shopping = next.shopping.filter(item => item.id !== id);
         });
-    } else if (action === 'split-item') {
+    } else if (action === 'shopping-photo') editShoppingPhoto(id);
+    else if (action === 'split-item') {
         const index = data.shopping.findIndex(item => item.id === id && !item.done);
         if (index === -1) return;
         const items = splitShopping(data.shopping[index].text);
         if (items.length > 1) changeData(next => {
-            next.shopping.splice(index, 1, ...items.map(text => ({ id: crypto.randomUUID(), text })));
+            const photo = next.shopping[index].photo;
+            next.shopping.splice(index, 1, ...items.map((text, position) =>
+                ({ id: crypto.randomUUID(), text, ...(position === 0 && validPhoto(photo) ? { photo } : {}) })));
         });
     } else if (action === 'quick-camera' || action === 'quick-library') {
         editRecord('notes');
