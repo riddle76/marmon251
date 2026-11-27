@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<title>Κοινά Ψώνια · Marmon</title>
+<title>Κοινά Ψώνια · Marmon251</title>
 <style>
 :root{color-scheme:light dark;--bg:#edf5ee;--panel:#fff;--card:#f7faf6;--ink:#14251b;--muted:#43594a;--line:#b3c9b9;--action:#205f3e;--on:#fff;--soft:#def0e2}
 @media(prefers-color-scheme:dark){:root{--bg:#11231c;--panel:#1a3026;--card:#1f382c;--ink:#f1f8f0;--muted:#c2d6c7;--line:#4b6b57;--action:#a1e1b2;--on:#133324;--soft:#294b38}}
@@ -20,11 +20,12 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 .favorites-card summary{cursor:pointer;min-height:30px}
 .favorites-card ul{margin-top:6px}
 @media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
+.brand{display:flex;align-items:center;gap:7px;color:var(--action);font-size:1rem;font-weight:750;letter-spacing:.025em;line-height:1.2}.brand img{display:block;flex:none}
 </style>
 <script defer src="app.js?v=2"></script>
 </head>
 <body>
-<header><div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
+<header><div><div class="brand"><img src="icon.svg" alt="" width="24" height="24"><span>Marmon251</span></div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
 <main>
 <form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
 <button class="primary wide">Προσθήκη στη λίστα</button></form>
