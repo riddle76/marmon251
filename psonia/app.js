@@ -281,13 +281,15 @@ async function connect(endpoint, path, body) {
 function showShare() {
     const owner = device.connection && role === 'owner';
     $('#connect').hidden = Boolean(device.connection) || Boolean(pendingInvite);
+    const pasteForm = $('#paste-invite');
+    if (pasteForm) pasteForm.hidden = Boolean(device.connection) || Boolean(pendingInvite);
     $('#accept-invite').hidden = !pendingInvite || Boolean(device.connection);
     $('#owner-actions').hidden = !owner;
     $('#connected').hidden = !device.connection;
     $('#invite-output').hidden = true;
     $('#share-status').textContent = device.connection ? 'Αυτή η συσκευή είναι συνδεδεμένη στην κοινή λίστα.' :
         pendingInvite ? 'Έχεις λάβει πρόσκληση για την κοινή λίστα.' : 'Για κοινή λίστα χρειάζεται ενεργός διακομιστής συγχρονισμού.';
-    $('#share').showModal();
+    if (!$('#share').open) $('#share').showModal();
     void showNotificationSettings();
 }
 
@@ -515,6 +517,24 @@ $('#enable-notifications').onclick = async () => {
     } catch (failure) {
         status.textContent = failure.message;
         button.disabled = false;
+    }
+};
+
+const pasteInvite = $('#paste-invite');
+if (pasteInvite) pasteInvite.onsubmit = event => {
+    event.preventDefault();
+    try {
+        const url = new URL(pasteInvite.elements.invitation.value.trim());
+        const params = new URLSearchParams(url.hash.slice(1));
+        const invite = params.get('invite');
+        if (url.origin !== location.origin || !/^\/marmon251\/psonia\/(?:index\.html)?$/.test(url.pathname) ||
+            !/^[a-f0-9]{64}$/.test(invite ?? '')) throw new Error();
+        pendingInvite = { invite, endpoint: validEndpoint(params.get('server') ?? '') };
+        pasteInvite.reset();
+        showShare();
+        $('#accept-invite').focus();
+    } catch {
+        $('#share-status').textContent = 'Επικόλλησε ολόκληρο τον σύνδεσμο της πρόσκλησης από τα Κοινά Ψώνια.';
     }
 };
 
