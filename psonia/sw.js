@@ -1,5 +1,5 @@
-const cacheName = 'marmon-psonia-shell-v6';
-const files = ['./', './index.html', './app.js?v=6', './manifest.webmanifest', './icon.svg'];
+const cacheName = 'marmon-psonia-shell-v7';
+const files = ['./', './index.html', './app.js?v=7', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(files)).then(() => self.skipWaiting()));
 });
