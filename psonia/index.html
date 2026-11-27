@@ -13,14 +13,24 @@
 @media(prefers-color-scheme:dark){:root{--bg:#11231c;--panel:#1a3026;--card:#1f382c;--ink:#f1f8f0;--muted:#c2d6c7;--line:#4b6b57;--action:#a1e1b2;--on:#133324;--soft:#294b38}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.45 system-ui,sans-serif}header,main{max-width:660px;margin:auto;padding-inline:18px}header{padding-top:max(20px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;gap:10px}main{padding-bottom:max(24px,env(safe-area-inset-bottom))}h1{font-size:clamp(1.8rem,7vw,2.65rem);line-height:1.05;margin:8px 0 4px}h2{margin:16px 0 6px;font-size:1.1rem}p{margin:6px 0 12px}.muted{color:var(--muted)}.card{border:1px solid var(--line);background:var(--panel);padding:13px;border-radius:17px;margin:14px 0}.primary{background:var(--action);color:var(--on);border-color:transparent}.wide{width:100%;margin-top:8px}
 button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:48px}button{font-weight:650;cursor:pointer}button:disabled{opacity:.6;cursor:wait}input,textarea{width:100%;margin:4px 0}.row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}textarea{display:block;resize:vertical;min-height:78px}ul{padding:0;margin:0;list-style:none}li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:6px 0}.product{display:flex;gap:10px;text-align:left;align-items:center}.product strong{overflow-wrap:anywhere}.check{color:var(--action)}.photo-button{font-size:.85rem;min-width:78px}.photo-button img{border-radius:5px;width:40px;height:34px;object-fit:cover;vertical-align:middle}dialog{color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:17px;width:min(94%,520px);max-height:88dvh;padding:15px}dialog::backdrop{background:#081711a0}label{display:block;margin:4px 0}#photo-preview{max-width:100%;max-height:290px;margin-top:8px;border-radius:9px}#warning{color:var(--muted);min-height:1.4em}[hidden]{display:none!important}:focus-visible{outline:2px solid var(--action);outline-offset:2px}.picker{display:inline-flex;align-items:center;padding:10px;min-height:48px;border:1px solid var(--line);border-radius:12px;cursor:pointer}.sr{position:absolute;width:1px;height:1px;min-height:0;overflow:hidden;clip-path:inset(50%)}.sr:focus-visible+.picker{outline:2px solid var(--action)}
+#products li{grid-template-columns:minmax(0,1fr) auto auto}
+.favorite-star{min-width:46px;padding-inline:6px;color:var(--action);font-size:1.05rem}
+.favorite-star[aria-pressed=true]{background:var(--soft)}
+.favorite-add{text-align:left;overflow-wrap:anywhere}
+.favorites-card summary{cursor:pointer;min-height:30px}
+.favorites-card ul{margin-top:6px}
+@media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
 </style>
-<script defer src="app.js"></script>
+<script defer src="app.js?v=2"></script>
 </head>
 <body>
 <header><div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
 <main>
 <form id="add" class="card"><label for="entry"><strong>Τι χρειάζεσαι;</strong></label><textarea id="entry" required placeholder="Γάλα πατάτες 6 αυγά"></textarea>
 <button class="primary wide">Προσθήκη στη λίστα</button></form>
+<details class="card favorites-card" open><summary><strong>Τα συχνά μου</strong></summary>
+<p id="favorite-empty" class="muted">Πάτησε το ☆ δίπλα σε ένα προϊόν για να το κρατήσεις εδώ.</p>
+<ul id="favorite-items"></ul></details>
 <p id="warning" role="status"></p>
 <h2 id="summary">0 προϊόντα</h2><div id="products"></div><p id="empty" class="muted">Η λίστα είναι άδεια.</p>
 </main>
