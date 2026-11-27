@@ -109,12 +109,19 @@ async function sendShoppingPush(db, list, actor, origin) {
             sub: origin + '/marmon251/psonia/'
         })));
         const signingInput = header + '.' + claims;
-        const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(signingInput));
+        const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(signingInput)).catch(error => {
+            console.warn('Shopping push signature failed', error.name);
+            throw error;
+        });
         // An empty Web Push message wakes the service worker, which fetches the current count securely.
         const response = await fetch(subscription.endpoint, {
             method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000),
             headers: { TTL: '86400', Topic: 'shopping-additions', Urgency: 'normal',
                 Authorization: 'vapid t=' + signingInput + '.' + base64url(signature) + ', k=' + keys.public_key }
+        }).catch(error => {
+            const message = String(error.message ?? '').replace(/https?:\/\/[^\s]+/gi, '[URL]').replace(/[A-Za-z0-9_./+=-]{22,}/g, '[redacted]');
+            console.warn('Shopping push fetch failed', error.name, message.slice(0, 180));
+            throw error;
         });
         console.info('Shopping push gateway response', response.status);
         if (response.status === 404 || response.status === 410) {
