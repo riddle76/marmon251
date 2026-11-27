@@ -22,7 +22,7 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 @media(max-width:360px){.photo-button{min-width:64px;padding-inline:6px;font-size:.75rem}}
 .brand{display:flex;align-items:center;gap:7px;color:var(--action);font-size:1rem;font-weight:750;letter-spacing:.025em;line-height:1.2}.brand img{display:block;flex:none}
 </style>
-<script defer src="app.js?v=3"></script>
+<script defer src="app.js?v=4"></script>
 </head>
 <body>
 <header><div><div class="brand"><img src="icon.svg" alt="" width="24" height="24"><span>Marmon251</span></div><h1>Κοινά Ψώνια</h1><p id="mode" class="muted"></p></div><button id="invite-open" type="button">Κοινή χρήση</button></header>
@@ -42,6 +42,7 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 <div id="owner-actions" hidden><button id="generate-invite" type="button" class="primary wide">Νέα πρόσκληση συσκευής</button>
 <div id="invite-output" hidden><label>Σύνδεσμος πρόσκλησης<input id="invite-link" readonly></label><button id="copy-invite" type="button">Αντιγραφή</button></div>
 <button id="revoke" type="button" class="wide">Αφαίρεση πρόσβασης από προσκεκλημένους</button></div>
+<div id="notification-options" hidden><button id="enable-notifications" type="button" class="wide">Ενεργοποίηση ειδοποιήσεων</button><p id="notification-status" class="muted" role="status"></p></div>
 <div id="connected" hidden><button id="disconnect" type="button" class="wide">Αποσύνδεση συσκευής</button></div>
 <button data-close class="wide" type="button">Κλείσιμο</button></dialog>
 <dialog id="photo" aria-labelledby="photo-title"><h2 id="photo-title">Φωτογραφία προϊόντος</h2>
@@ -50,3 +51,4 @@ button,input,textarea{font:inherit;color:inherit;background:var(--card);border:1
 <p id="photo-status" role="status"></p><img id="photo-preview" alt="Φωτογραφία προϊόντος" hidden>
 <button id="photo-clear" type="button" class="wide" hidden>Αφαίρεση εικόνας</button><button id="photo-save" type="button" class="primary wide">Αποθήκευση φωτογραφίας</button><button data-close class="wide" type="button">Κλείσιμο</button></dialog>
 </body></html>
+
