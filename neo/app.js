@@ -705,7 +705,14 @@ function backupDownload() {
 }
 
 const appearanceKey = 'marmon-neo-appearance';
-const palettes = { blue: 'Μπλε', green: 'Πράσινο', graphite: 'Γκρι' };
+const palettes = {
+    blue: 'Μπλε', green: 'Πράσινο', graphite: 'Γκρι',
+    teal: 'Πετρόλ',
+    amber: 'Κεχριμπαρί',
+    terracotta: 'Τερακότα',
+    burgundy: 'Μπορντό',
+    sand: 'Άμμος'
+};
 const appearanceModes = { system: 'Αυτόματο', light: 'Φωτεινό', dark: 'Σκούρο' };
 
 function loadAppearance() {
@@ -731,8 +738,13 @@ function appearanceEditor() {
     const options = (values, selected) => Object.entries(values).map(([value, label]) =>
         '<option value="' + value + '"' + (selected === value ? ' selected' : '') + '>' + label + '</option>'
     ).join('');
+    const choices = Object.entries(palettes).map(([value, label]) =>
+        '<label class="palette-choice" data-tone="' + value + '">' +
+        '<input type="radio" name="palette" value="' + value + '"' + (value === current.palette ? ' checked' : '') +
+        '><span class="palette-name"><span class="palette-swatch" aria-hidden="true"></span>' + label + '</span></label>'
+    ).join('');
     openEditor('Εμφάνιση', '<form id="appearance-form">' +
-        '<label>Χρώμα<select name="palette">' + options(palettes, current.palette) + '</select></label>' +
+        '<fieldset class="palette-fieldset"><legend>Χρώμα</legend><div class="palette-grid">' + choices + '</div></fieldset>' +
         '<label>Θέμα<select name="mode">' + options(appearanceModes, current.mode) + '</select></label>' +
         '<p class="muted" role="status"></p></form>');
     const form = editor.querySelector('form');
