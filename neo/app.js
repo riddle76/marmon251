@@ -107,8 +107,8 @@ async function exportAppointment(task) {
 }
 
 const storageKey = 'marmon-neo-data-v1';
-const emptyData = () => ({ shopping: [], leaves: [], appointments: [], notes: [], entitlements: {} });
-const screens = { today: 'Σήμερα', leave: 'Άδειες', appointments: 'Ραντεβού', shop: 'Ψώνια', notes: 'Σημειώσεις' };
+const emptyData = () => ({ shopping: [], leaves: [], appointments: [], notes: [], entitlements: {}, tasks: [], vehicles: [] });
+const screens = { today: 'Σήμερα', leave: 'Άδειες', appointments: 'Ραντεβού', shop: 'Ψώνια', notes: 'Σημειώσεις', tasks: 'Εκκρεμότητες', vehicles: 'Οχήματα' };
 const view = document.querySelector('#screen');
 const dialog = document.querySelector('#editor');
 const editor = document.querySelector('#editor-body');
@@ -119,7 +119,7 @@ let data = loadData();
 function loadData() {
     try {
         const saved = JSON.parse(localStorage.getItem(storageKey));
-        return validBackup(saved) ? saved : emptyData();
+        return validBackup(saved) ? { ...emptyData(), ...saved } : emptyData();
     } catch {
         return emptyData();
     }
@@ -459,7 +459,7 @@ function renderToday() {
     const { used, planned } = summarizeLeave(data.leaves, today.slice(0, 4), today);
     return '<p class="muted">' + new Date().toLocaleDateString('el-GR', { dateStyle: 'full' }) + '</p>' +
         '<h2>Επόμενο ραντεβού</h2>' + (next ? appointmentCard(next) : '<p class="card">Δεν υπάρχει προγραμματισμένο ραντεβού.</p>') +
-        '<section class="card"><strong>Διαθέσιμες μέρες άδειας</strong><p>' +
+        dashboardOrganizer(today) + '<section class="card"><strong>Διαθέσιμες μέρες άδειας</strong><p>' +
         (entitlement === undefined ? 'Όρισε το ετήσιο δικαίωμά σου στην καρτέλα Άδειες.' : entitlement - used - planned) +
         '</p></section><section class="card"><strong>Στη λίστα για ψώνια</strong><p>' +
         data.shopping.filter(item => !item.done).length + ' προϊόντα</p></section>';
@@ -468,11 +468,11 @@ function renderToday() {
 function render() {
     document.querySelector('#heading').textContent = screens[selectedTab];
     document.querySelectorAll('[data-tab]').forEach(button => {
-        if (button.dataset.tab === selectedTab) button.setAttribute('aria-current', 'page');
+        if (button.dataset.tab === selectedTab || (button.dataset.tab === 'today' && ['tasks', 'vehicles'].includes(selectedTab))) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
     });
     const renderers = { today: renderToday, leave: renderLeave, shop: renderShopping, appointments: renderAppointments,
-        notes: renderNotes };
+        notes: renderNotes, tasks: renderTasks, vehicles: renderVehicles };
     view.innerHTML = renderers[selectedTab]();
     updateAppointmentBadge();
 }
@@ -648,7 +648,7 @@ function openLeave() {
 function validBackup(value) {
     if (!value || typeof value !== 'object') return false;
     const record = item => item && typeof item.id === 'string';
-    return Array.isArray(value.shopping) && value.shopping.every(item => record(item) && typeof item.text === 'string') &&
+    return validOrganizerData(value) && Array.isArray(value.shopping) && value.shopping.every(item => record(item) && typeof item.text === 'string') &&
         Array.isArray(value.leaves) && value.leaves.every(item => record(item) && item.category === 'leaves' &&
             Array.isArray(item.leaveDates) && item.leaveDates.every(day => typeof day === 'string' && parseLeaveDate(day))) &&
         Array.isArray(value.appointments) && value.appointments.every(item => record(item) &&
@@ -688,7 +688,7 @@ function backupEditor() {
             const copy = Array.isArray(parsed) ? legacyBackup(parsed) : parsed;
             if (!validBackup(copy)) throw Error('Invalid backup');
             if (!confirm('Να αντικατασταθούν οι καταχωρίσεις αυτής της έκδοσης από το αντίγραφο;')) return;
-            if (changeData(next => Object.assign(next, copy))) dialog.close();
+            if (changeData(next => Object.assign(next, emptyData(), copy))) dialog.close();
         } catch { alert('Το αρχείο δεν αναγνωρίστηκε ως αντίγραφο του σημειωματαρίου.'); }
     };
 }
@@ -755,12 +755,14 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 
 document.querySelector('#backup').onclick = backupEditor;
 document.querySelector('#close-editor').onclick = () => dialog.close();
-document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () => {
-    selectedTab = button.dataset.tab;
+function navigateNotebook(tab) {
+    selectedTab = tab;
     render();
     document.querySelector('#heading').focus();
     window.scrollTo(0, 0);
-});
+}
+
+document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () => navigateNotebook(button.dataset.tab));
 
 view.addEventListener('input', event => {
     if (event.target.id === 'note-search') {
@@ -769,6 +771,12 @@ view.addEventListener('input', event => {
     }
 });
 view.addEventListener('change', event => {
+    if (event.target.id === 'task-view' || event.target.id === 'task-tag') {
+        if (event.target.id === 'task-view') taskView = event.target.value;
+        else taskTag = event.target.value;
+        render();
+        document.getElementById(event.target.id)?.focus();
+    }
     if (event.target.id === 'note-tag-filter') {
         activeNoteTag = event.target.value;
         document.querySelector('#note-cards').innerHTML = noteCards();
@@ -780,6 +788,10 @@ view.addEventListener('change', event => {
 });
 view.addEventListener('submit', event => {
     event.preventDefault();
+    if (event.target.id === 'quick-task') {
+        addQuickTask(event.target);
+        return;
+    }
     const fields = new FormData(event.target);
     if (event.target.id === 'shopping-form') {
         const items = splitShopping(fields.get('items'));
@@ -793,6 +805,7 @@ document.addEventListener('click', event => {
     const target = event.target.closest('[data-action]');
     if (!target) return;
     const { action, id, kind } = target.dataset;
+    if (organizerAction(action, target.dataset)) return;
     if (action === 'delete-shopping') {
         changeData(next => {
             next.shopping = next.shopping.filter(item => item.id !== id);
