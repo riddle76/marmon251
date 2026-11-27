@@ -87,6 +87,7 @@ const $ = selector => document.querySelector(selector);
 const storageKey = 'marmon-psonia-v1';
 const device = loadDevice();
 let products = device.local;
+let favorites = device.favorites;
 let revision = null;
 let role = device.connection?.role;
 let error = '';
@@ -99,9 +100,9 @@ let selectedPhoto = '';
 function loadDevice() {
     try {
         const value = JSON.parse(localStorage.getItem(storageKey));
-        if (Array.isArray(value?.local)) return value;
+        if (Array.isArray(value?.local)) return { ...value, favorites: Array.isArray(value.favorites) ? value.favorites : [] };
     } catch {}
-    return { local: [], connection: null };
+    return { local: [], favorites: [], connection: null };
 }
 
 function saveDevice(next) {
@@ -144,13 +145,40 @@ async function api(path, options = {}) {
     return data;
 }
 
+function favoriteKey(title) {
+    return normalizeShoppingWord(title.trim().replace(/\s+/g, ' '));
+}
+
+function favoriteFor(title) {
+    const key = favoriteKey(title);
+    return favorites.find(item => favoriteKey(item.title) === key);
+}
+
+function renderFavorites() {
+    const list = $('#favorite-items');
+    $('#favorite-empty').hidden = favorites.length > 0;
+    list.innerHTML = favorites.map(item => {
+        const title = escapeHtml(item.title);
+        const id = escapeHtml(item.id);
+        const onList = products.some(product => favoriteKey(product.title) === favoriteKey(item.title));
+        return '<li><button class="favorite-add" data-use-favorite="' + id + '"' + (onList ? ' disabled' : '') +
+            ' aria-label="Προσθήκη στη λίστα: ' + title + '">' +
+            (onList ? '<span aria-hidden="true">✓</span> ' : '<span aria-hidden="true">+</span> ') + title + '</button>' +
+            '<button class="favorite-star" data-remove-favorite="' + id + '" aria-label="Αφαίρεση από τα Συχνά: ' + title + '">×</button></li>';
+    }).join('');
+}
+
 function productRow(item) {
     const image = validPhoto(item.photo) ? '<img src="' + item.photo + '" alt="" loading="lazy">' : 'Φωτογραφία';
     const name = escapeHtml(correctShoppingSpelling(item.title));
     const id = escapeHtml(item.id);
+    const favorite = favoriteFor(item.title);
     return '<li><button data-remove="' + id + '" class="product" aria-label="Διαγραφή: ' + name + '">' +
         '<span aria-hidden="true" class="check">✓</span><strong>' + name + '</strong></button>' +
-        '<button class="photo-button" data-photo="' + id + '" aria-label="Φωτογραφία: ' + name + '">' + image + '</button></li>';
+        '<button class="photo-button" data-photo="' + id + '" aria-label="Φωτογραφία: ' + name + '">' + image + '</button>' +
+        '<button class="favorite-star" data-save-favorite="' + id + '" aria-pressed="' + Boolean(favorite) +
+        '" aria-label="' + (favorite ? 'Αφαίρεση από τα Συχνά: ' : 'Αποθήκευση στα Συχνά: ') + name +
+        '">' + (favorite ? '★' : '☆') + '</button></li>';
 }
 
 function render() {
@@ -162,6 +190,7 @@ function render() {
     $('#products').innerHTML = [...groups].filter(([, list]) => list.length)
         .map(([name, list]) => '<section><h2>' + name + '</h2><ul>' + list.map(productRow).join('') + '</ul></section>').join('');
     $('#empty').hidden = products.length !== 0;
+    renderFavorites();
     $('#invite-open').textContent = role === 'owner' ? 'Πρόσκληση' : 'Κοινή χρήση';
 }
 
@@ -177,8 +206,13 @@ async function refresh(force = false) {
         try {
             const snapshot = await api('/list' + (force || previous === null ? '' : '?revision=' + previous));
             if (device.connection !== connection) return;
-            if (!snapshot.unchanged && (revision === null || snapshot.revision >= revision)) products = snapshot.items;
-            revision = snapshot.revision;
+            if (revision === null || snapshot.revision >= revision) {
+                if (!snapshot.unchanged) {
+                    products = snapshot.items;
+                    favorites = snapshot.favorites || [];
+                }
+                revision = snapshot.revision;
+            }
             role = snapshot.role;
             error = '';
             render();
@@ -187,6 +221,7 @@ async function refresh(force = false) {
             error = failure.status === 401 ? 'Η πρόσβαση έληξε ή αφαιρέθηκε.' : 'Δεν έγινε συγχρονισμός. Η εφαρμογή θα δοκιμάσει ξανά.';
             if (failure.status === 401) {
                 products = [];
+                favorites = [];
                 revision = null;
             }
             render();
@@ -198,7 +233,7 @@ async function refresh(force = false) {
     if (refreshing === ongoing) refreshing = false;
 }
 
-async function changeItems(path, method, body, localChange) {
+async function changeItems(path, method, body, localChange, localKey = 'local') {
     if (busy) return false;
     busy = true;
     try {
@@ -209,9 +244,10 @@ async function changeItems(path, method, body, localChange) {
                 error = 'Η κοινή λίστα δέχεται έως 100 προϊόντα. Προστέθηκαν ' + result.added + '.';
             }
         } else {
-            const list = localChange(device.local);
-            saveDevice({ ...device, local: list });
+            const list = localChange(device[localKey]);
+            saveDevice({ ...device, [localKey]: list });
             products = device.local;
+            favorites = device.favorites;
             error = '';
         }
         render();
@@ -228,6 +264,7 @@ async function connect(endpoint, path, body) {
     const session = await api(path, { endpoint, token: null, method: 'POST', body });
     saveDevice({ ...device, connection: { endpoint, token: session.token, role: session.role } });
     products = [];
+    favorites = [];
     revision = null;
     role = session.role;
     await refresh(true);
@@ -279,6 +316,21 @@ $('#products').onclick = event => {
         const id = target.dataset.remove;
         void changeItems('/items/' + encodeURIComponent(id), 'DELETE', null, previous => previous.filter(item => item.id !== id));
     }
+    if (target.dataset.saveFavorite) {
+        const item = products.find(entry => entry.id === target.dataset.saveFavorite);
+        if (!item) return;
+        const existing = favoriteFor(item.title);
+        if (existing) removeFavorite(existing.id);
+        else {
+            if (favorites.length >= 50) {
+                error = 'Μπορείς να αποθηκεύσεις έως 50 συχνά προϊόντα.';
+                render();
+                return;
+            }
+            const favorite = { id: crypto.randomUUID(), title: correctShoppingSpelling(item.title) };
+            void changeItems('/favorites', 'POST', favorite, previous => [...previous, favorite], 'favorites');
+        }
+    }
     if (target.dataset.photo) {
         const item = products.find(entry => entry.id === target.dataset.photo);
         if (!item) return;
@@ -289,6 +341,21 @@ $('#products').onclick = event => {
         previewPhoto();
         $('#photo').showModal();
     }
+};
+
+function removeFavorite(id) {
+    void changeItems('/favorites/' + encodeURIComponent(id), 'DELETE', null,
+        previous => previous.filter(item => item.id !== id), 'favorites');
+}
+
+$('#favorite-items').onclick = event => {
+    const target = event.target.closest('button');
+    if (!target) return;
+    if (target.dataset.removeFavorite) removeFavorite(target.dataset.removeFavorite);
+    const favorite = favorites.find(item => item.id === target.dataset.useFavorite);
+    if (!favorite || products.some(item => favoriteKey(item.title) === favoriteKey(favorite.title))) return;
+    const item = { id: crypto.randomUUID(), title: favorite.title, photo: '' };
+    void changeItems('/items', 'POST', { items: [item] }, previous => [...previous, item]);
 };
 
 function previewPhoto() {
@@ -395,6 +462,7 @@ $('#disconnect').onclick = () => {
     if (role === 'owner' && !confirm('Η αποσύνδεση αφαιρεί το δικαίωμα διαχείρισης από αυτή τη συσκευή. Συνέχεια;')) return;
     saveDevice({ ...device, connection: null });
     products = device.local;
+    favorites = device.favorites;
     role = null;
     revision = null;
     error = '';
